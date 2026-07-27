@@ -16,7 +16,8 @@ lossless flattening to standard TOML.
 
 * 🚀 **TOML v1.1 Baseline:** Every valid TOML 1.1 document is valid ATML.
 * 🌿 **Inheritance:** Hierarchical table merging via `[child : parent]`,
-  with multiple parents (`[child : p1, p2]`, first parent wins).
+  with multiple parents (`[child : p1, p2]`, first parent wins), for
+  both standard tables and arrays of tables (`[[child : parent]]`).
 * 🔗 **Bare Path References:** Assign values dynamically via
   `host = server.defaults.host`.
 * 🏷️ **Type-Safe Enums:** Explicit enum references

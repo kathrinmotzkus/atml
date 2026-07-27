@@ -1,27 +1,27 @@
-;; ATML Extension Rules -- Mixed Quantities (Entwurf 2)
-;; Rein additiv zu toml-1.1.0.abnf: nur "=/"-Erweiterungen und neue atml-*-Regeln.
+;; ATML Extension Rules -- Mixed Quantities
+;; Purely additive to toml-1.1.0.abnf: only "=/" extensions and new atml-* rules.
 
 val =/ atml-quantity
 
-;; Basis: ausschliesslich dezimal (Integer oder numerischer Float).
-;; Niemals hex/oct/bin (Prefix-Ausschluss), niemals inf/nan (kein special-float).
+;; Base: strictly decimal (integer or numeric float).
+;; Never hex/oct/bin (prefix exclusion), never inf/nan (no special-float).
 atml-quantity  = atml-zero atml-zero-unit
 atml-quantity =/ atml-signed-zero atml-unit
 atml-quantity =/ atml-nonzero-dec atml-unit
 atml-quantity =/ atml-float-num atml-unit
 
-atml-zero        = %x30                                    ; blankes "0"
-atml-signed-zero = ( minus / plus ) %x30                   ; "+0" / "-0" (kollisionsfrei)
+atml-zero        = %x30                                    ; bare "0"
+atml-signed-zero = ( minus / plus ) %x30                   ; "+0" / "-0" (collision-free)
 atml-nonzero-dec = [ minus / plus ] digit1-9 *( DIGIT / underscore DIGIT )
-atml-float-num   = float-int-part ( exp / frac [ exp ] )   ; 1.5 / 0.5 / 1e3, ohne inf/nan
+atml-float-num   = float-int-part ( exp / frac [ exp ] )   ; 1.5 / 0.5 / 1e3, no inf/nan
 
-;; Einheit: nur Buchstaben (ms, s, KiB, MiB, GiB, Hz, px, bar, ohm, ...)
+;; Unit: letters only (ms, s, KiB, MiB, GiB, Hz, px, bar, ohm, ...)
 atml-unit = 1*ALPHA
 
-;; Einheit nach blankem "0":
-;; b/o sind unkritisch (bin/oct verlangen Ziffern). Nur kleines "x" kollidiert
-;; mit Hex, und zwar genau dann, wenn ALLE Folgezeichen Hex-Buchstaben sind.
-;; Positiv kodiert: nach "x" muss irgendwo ein Nicht-Hex-Buchstabe folgen.
+;; Unit after a bare "0":
+;; b/o are harmless (bin/oct require digits). Only lowercase "x" collides
+;; with hex, and only when ALL following characters are hex letters.
+;; Encoded positively: after "x" at least one non-hex letter must follow.
 atml-zero-unit  = atml-alpha-no-x *ALPHA
 atml-zero-unit =/ %x78 *atml-hex-alpha atml-nonhex-alpha *ALPHA
 
@@ -30,11 +30,11 @@ atml-hex-alpha    = %x41-46 / %x61-66             ; A-F, a-f
 atml-nonhex-alpha = %x47-5A / %x67-7A             ; G-Z, g-z
 
 ;; -----------------------------------------------------------------
-;; Bare Path References (Entwurf 1)
-;; Mindestens zwei Segmente; jedes Segment beginnt mit Buchstabe oder
-;; Unterstrich. Damit bleiben true/false/inf/nan (einteilig) und
-;; 3.14159 (Ziffern-Segmente) eindeutig Standard-TOML-Werte.
-;; Kein Whitespace um die Punkte (strenger als TOML-Keys, bewusst).
+;; Bare Path References
+;; At least two segments; each segment starts with a letter or underscore.
+;; This keeps true/false/inf/nan (single tokens) and 3.14159 (digit
+;; segments) unambiguously standard TOML values.
+;; No whitespace around the dots (deliberately stricter than TOML keys).
 
 val =/ atml-path-ref
 
@@ -42,12 +42,11 @@ atml-path-ref = atml-ref-seg 1*( %x2E atml-ref-seg )   ; seg "." seg ...
 atml-ref-seg  = ( ALPHA / underscore ) *( ALPHA / DIGIT / underscore / minus )
 
 ;; -----------------------------------------------------------------
-;; Table Inheritance (Entwurf 1)
-;; [child : parent]  bzw.  [child : parent1, parent2, ...]
-;; Child und Eltern nutzen die normale TOML-key-Regel (bare/quoted/dotted).
-;; Kollisionsfrei: ein Doppelpunkt ausserhalb von Quotes ist in
-;; Standard-TOML-Headern unmoeglich.
-;; Vorerst nur fuer Standard-Tabellen; [[c : a]] bleibt reserviert.
+;; Table Inheritance
+;; [child : parent]  or  [child : parent1, parent2, ...]
+;; Child and parents use the standard TOML key rule (bare/quoted/dotted).
+;; Collision-free: a colon outside quotes is impossible in standard TOML
+;; headers.
 
 table =/ atml-inherit-table
 
@@ -55,14 +54,28 @@ atml-inherit-table = std-table-open key ws %x3A ws key
                      *( ws %x2C ws key ) std-table-close
 
 ;; -----------------------------------------------------------------
-;; Type-Safe Enums (Entwurf 1)
-;; Mehrstufig: Typ::Variante oder net::Mode::Active (>= 2 Segmente).
-;; Segmente folgen Rust-Ident-Konventionen: Start mit Buchstabe oder
-;; Unterstrich, danach Buchstaben/Ziffern/Unterstrich (kein Bindestrich).
-;; Kollisionsfrei: "::" existiert in keinem Standard-TOML-Wert, und
-;; Local Time (07:32) nutzt nur einfache Doppelpunkte nach Ziffern.
+;; Type-Safe Enums
+;; Multi-level: Type::Variant or net::Mode::Active (>= 2 segments).
+;; Segments follow Rust identifier conventions: start with a letter or
+;; underscore, then letters/digits/underscore (no hyphen).
+;; Collision-free: "::" exists in no standard TOML value, and Local Time
+;; (07:32) uses only single colons after digits.
 
 val =/ atml-enum
 
 atml-enum     = atml-enum-seg 1*( %x3A.3A atml-enum-seg )   ; seg "::" seg ...
 atml-enum-seg = ( ALPHA / underscore ) *( ALPHA / DIGIT / underscore )
+
+;; -----------------------------------------------------------------
+;; Array-of-Tables Inheritance  (spec decision #13, implemented)
+;; [[child : parent]]  or  [[child : p1, p2, ...]]
+;; Semantics: appends a NEW element to the array "child" and seeds it with
+;; the resolved key/values of its parents (first wins), then the child's own
+;; key/values override. Parents must resolve to standard tables (array
+;; elements are not name-addressable) -- a semantic, not a grammar, rule.
+;; array-table-open/-close already carry ws.
+
+array-table =/ atml-inherit-array
+
+atml-inherit-array = array-table-open key ws %x3A ws key
+                     *( ws %x2C ws key ) array-table-close

@@ -1,0 +1,59 @@
+# ATML showcase -- every valid TOML 1.1 construct is valid ATML,
+# plus four purely additive extensions.
+
+title = "Scanner fleet configuration"
+spec-version = "1.0"
+created = 2026-07-27T09:30:00+02:00   # standard TOML offset date-time
+maintenance-window = 04:15            # standard TOML local time
+
+# ---------------------------------------------------------------
+# Plain TOML: nothing below this comment uses ATML features.
+# ---------------------------------------------------------------
+
+[fleet]
+region = "eu-central"
+max-nodes = 1_024
+flags = 0xC0FF_EE                     # hex stays hex, always
+pi-shard = 3.1415
+fallback = nan                        # valid TOML float, as ever
+active = true
+tags = [ "prod", "scanner", { tier = 2, gpu = false } ]
+
+[[fleet.nodes]]
+name = "alpha"
+
+[[fleet.nodes]]
+name = "beta"
+
+# ---------------------------------------------------------------
+# ATML Feature 1: Mixed Quantities (decimal base + letter unit)
+# ---------------------------------------------------------------
+
+[probe.defaults]
+connect-timeout = 250ms
+read-timeout = 1.5s
+retry-backoff = 2e2ms                 # floats with exponents work too
+max-payload = 16_384KiB
+disk-quota = 2GiB
+pressure-floor = 0bar                 # collision-free: 0b needs binary digits
+mode = probe::Strategy::Passive       # ATML Feature 4: namespaced enum
+
+# ---------------------------------------------------------------
+# ATML Feature 3: Table inheritance (first parent wins; child overrides)
+# ---------------------------------------------------------------
+
+[probe.aggressive : probe.defaults]
+connect-timeout = 80ms                # override
+mode = probe::Strategy::Active
+
+[probe.audit : probe.defaults, probe.aggressive]
+# inherits everything from probe.defaults first, then probe.aggressive
+report-format = ReportFormat::Sarif   # ATML Feature 4: simple enum
+
+# ---------------------------------------------------------------
+# ATML Feature 2: Bare path references (>= 2 segments, no quotes)
+# ---------------------------------------------------------------
+
+[export]
+window = probe.defaults.read-timeout  # reference, not a string
+limits = [ probe.defaults.disk-quota, 512MiB ]

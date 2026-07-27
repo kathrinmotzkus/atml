@@ -52,7 +52,11 @@ TABLE_CASES = [
     ("[cache : server]", True), ("[c : a, b]", True), ("[c:a,b]", True),
     ("[prod.db : defaults.db]", True), ('[c : "srv one", b]', True),
     ('["a:b"]', True), ("[server]", True), ("[[products]]", True),
-    ("[a : ]", False), ("[ : b]", False), ("[[c : a]]", False),
+    ("[a : ]", False), ("[ : b]", False),
+    # --- Array-of-tables inheritance (decision #13, implemented) ---
+    ("[[tcp : proto.rpc]]", True), ("[[tcp : proto.base, proto.rpc]]", True),
+    ("[[tcp:proto.rpc]]", True), ('[["a:b"]]', True),
+    ("[[tcp : ]]", False), ("[[ : proto.rpc]]", False),
 ]
 
 FULL_ATML_DOC = (

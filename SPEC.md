@@ -62,33 +62,58 @@ Syntax: `write_timeout = server.defaults.read_timeout`.
 
 ## 4. Table Inheritance
 
-Syntax: `[child : parent]` or `[child : parent1, parent2, ...]`.
+Syntax: `[child : parent]` / `[child : parent1, parent2, ...]` for standard
+tables, and `[[child : parent]]` / `[[child : parent1, parent2, ...]]` for
+arrays of tables.
 
 11. Child and parents use the standard TOML `key` rule (bare, quoted, or
     dotted). A colon outside quotes is impossible in standard TOML headers,
-    so the syntax is collision-free; `["a:b"]` remains an ordinary TOML
-    table name.
+    so the syntax is collision-free; `["a:b"]` and `[["a:b"]]` remain
+    ordinary TOML table names.
 12. **Conflict resolution: first wins.** When multiple parents define the
     same key, earlier parents take precedence; the child overrides all
     parents. The parent list is a priority list.
-13. **Reserved:** `[[child : parent]]` (array-of-tables inheritance) is
-    reserved and currently invalid.
+13. **Array-of-tables inheritance.** `[[child : parent]]` appends a new
+    element to the array `child`, pre-seeded with the fully resolved
+    key/values of its parents (parents are resolved recursively first, so
+    transitive inheritance applies), then overridden by the element's own
+    key/values. Multiple parents follow the same first-wins rule as #12.
+    Sub-tables and sub-arrays declared afterwards (e.g. `[[child.sub]]`)
+    attach positionally to the most recently created element, unchanged from
+    standard TOML. On flattening, the element is emitted as an ordinary
+    `[[child]]` block with all resolved keys; no `:` construct leaks.
+14. **Parents must resolve to standard tables.** A parent is referenced by
+    name, and array-of-tables elements are not name-addressable (they are
+    indexed positionally). Therefore the parent of any inheriting table —
+    standard or array — must resolve to a standard table. This is a semantic
+    rule; the grammar does not and cannot enforce it.
+
+**Open question (deferred): abstract/template tables.** A table used purely
+as an inheritance parent (a "template") is still emitted as a normal table on
+flattening. For consumers that reject unknown or partially-populated tables,
+this is noise. Whether ATML gains a way to mark a table abstract (so the
+flattener drops it) — via an explicit marker, a reserved namespace, or a
+flattener option rather than a language feature — is intentionally left open.
+Regrouping the data along its natural shared axis (so the shared fields live
+in a concrete, meaningful grouping table rather than an abstract template)
+often dissolves the need for a template entirely, and is the recommended
+first approach.
 
 ## 5. Type-Safe Enums
 
 Syntax: `mode = OperationalMode::Active`, namespaced: `net::Mode::Active`.
 
-14. An enum has **at least two segments** separated by `::`; multi-level
+15. An enum has **at least two segments** separated by `::`; multi-level
     namespaces are allowed.
-15. Segments follow Rust identifier conventions: they start with a letter or
+16. Segments follow Rust identifier conventions: they start with a letter or
     underscore, followed by letters, digits, or underscores — no hyphens.
 
 ## 6. Flattening
 
-16. `.atml` documents compile losslessly to standard TOML: inheritance is
+17. `.atml` documents compile losslessly to standard TOML: inheritance is
     expanded, references are resolved, enums and quantities are lowered to
     their configured standard representations. The emitted output must
     validate against the official, unmodified `toml.abnf` — no ATML
-    construct may leak through. Detection of reference cycles is a required
-    part of the resolution pass. (Detailed resolution semantics: in
-    progress.)
+    construct may leak through. Detection of reference and inheritance cycles
+    is a required part of the resolution pass. (Detailed resolution
+    semantics: in progress.)
