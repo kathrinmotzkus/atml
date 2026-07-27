@@ -1,0 +1,25 @@
+name: CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  grammar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install abnf
+      - name: Verify vendored baseline is byte-identical to upstream 1.1.0
+        run: |
+          curl -sL https://raw.githubusercontent.com/toml-lang/toml/1.1.0/toml.abnf -o /tmp/upstream.abnf
+          diff -q /tmp/upstream.abnf grammar/toml-1.1.0.abnf
+      - name: Build grammar (enforces additivity invariant)
+        run: python tools/build_atml.py
+      - name: Verify committed atml.abnf is in sync with sources
+        run: git diff --exit-code grammar/atml.abnf
+      - name: Run grammar test suite
+        run: python tests/test_grammar.py
