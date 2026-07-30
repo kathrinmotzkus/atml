@@ -46,7 +46,10 @@ grammar/atml-ext.abnf     ATML extension rules (source of truth, purely additive
 grammar/atml.abnf         Built, self-contained grammar (do not edit directly)
 tools/build_atml.py       Concatenates the grammar and enforces additivity
 tests/test_grammar.py     Grammar test suite (positive/negative/regression)
-SPEC.md                   Normative specification
+tools/validate_atml.py    Validator: grammar + enum membership + inheritance
+tests/test_validator.py   Validator test suite
+SPEC.md                   Normative language specification
+PARSER.md                 Conversion operations (flatten / re-flatten / lift)
 ```
 
 The extension file contains only `=/` incremental alternatives and new
@@ -59,6 +62,19 @@ valid ATML document — is therefore proven by construction and enforced in CI.
 pip install abnf
 python tools/build_atml.py
 python tests/test_grammar.py
+python tests/test_validator.py
+```
+
+## Validating a document
+
+`tools/validate_atml.py` checks a document beyond raw grammar: enum
+membership (a used symbol or value must belong to an in-scope enum),
+inheritance parents (must be declared standard tables), and inheritance
+cycles. It is a reference implementation and a conformance oracle for
+other implementations.
+
+```
+python tools/validate_atml.py path/to/file.atml
 ```
 
 ## Relationship to TOML

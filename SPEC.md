@@ -1,6 +1,11 @@
 # ATML Specification
 
-**Status:** Draft 1 (grammar complete, resolution semantics in progress)
+**Grammar:** Stable. The syntax of all five feature areas — quantities, bare
+path references, table inheritance, array-of-tables inheritance, and enums —
+is complete, implemented in `grammar/atml.abnf`, and covered by the test suite.
+**Scope:** This document defines the ATML *language*. Conversion between ATML
+and TOML (flattening, re-flattening, lifting) is a parser/tool concern and
+lives in `PARSER.md`.
 **Baseline:** TOML v1.1.0 (released 2025-12-18)
 
 This document records the normative decisions of the ATML language. The
@@ -72,7 +77,11 @@ arrays of tables.
     ordinary TOML table names.
 12. **Conflict resolution: first wins.** When multiple parents define the
     same key, earlier parents take precedence; the child overrides all
-    parents. The parent list is a priority list.
+    parents. The parent list is a priority list. Resolution is transitive:
+    parents are resolved recursively first, so a table inherits from its
+    parents' parents automatically. A chained header form (`[a : b : c]`) is
+    therefore deliberately not provided — transitivity already carries the
+    chain, and multiple direct parents are written with commas.
 13. **Array-of-tables inheritance.** `[[child : parent]]` appends a new
     element to the array `child`, pre-seeded with the fully resolved
     key/values of its parents (parents are resolved recursively first, so
@@ -80,24 +89,15 @@ arrays of tables.
     key/values. Multiple parents follow the same first-wins rule as #12.
     Sub-tables and sub-arrays declared afterwards (e.g. `[[child.sub]]`)
     attach positionally to the most recently created element, unchanged from
-    standard TOML. On flattening, the element is emitted as an ordinary
-    `[[child]]` block with all resolved keys; no `:` construct leaks.
+    standard TOML.
 14. **Parents must resolve to standard tables.** A parent is referenced by
     name, and array-of-tables elements are not name-addressable (they are
     indexed positionally). Therefore the parent of any inheriting table —
     standard or array — must resolve to a standard table. This is a semantic
-    rule; the grammar does not and cannot enforce it.
-
-**Open question (deferred): abstract/template tables.** A table used purely
-as an inheritance parent (a "template") is still emitted as a normal table on
-flattening. For consumers that reject unknown or partially-populated tables,
-this is noise. Whether ATML gains a way to mark a table abstract (so the
-flattener drops it) — via an explicit marker, a reserved namespace, or a
-flattener option rather than a language feature — is intentionally left open.
-Regrouping the data along its natural shared axis (so the shared fields live
-in a concrete, meaningful grouping table rather than an abstract template)
-often dissolves the need for a template entirely, and is the recommended
-first approach.
+    rule; the grammar does not and cannot enforce it. **Table order is not
+    significant:** a parent may be declared before or after the inheriting
+    table, matching standard TOML's order-independent tables. This is a
+    deliberate contrast with enums, which follow definition-before-use (§19).
 
 ## 5. Enums
 
@@ -112,10 +112,10 @@ Markerless (shorthand): `<enum-name> = [ choice, choice, ... ]`
 
 15. **Marked declaration.** The `[]` marker on the key makes the entry an enum
     regardless of its contents. Because `[` and `]` cannot occur in a TOML
-    key, the form is collision-free and additive. This is the general form and
-    the only one that can carry a list of purely ordinary values (e.g. ports
-    `[110, 111, 143]`), since such a list is otherwise indistinguishable from
-    a plain array.
+    key, the form is collision-free and additive. It is the general form and
+    the only *reliable* way to declare a list of purely ordinary values (e.g.
+    ports `[110, 111, 143]`): such a list is otherwise indistinguishable from
+    a plain array, so the markerless form below would be demoted to an array.
 16. **Markerless declaration.** Valid ATML as well, but it acts as an enum
     only when the list does not parse as a plain TOML array — that is, when it
     contains at least one bare symbol. A list of purely ordinary values stays
@@ -132,16 +132,10 @@ Markerless (shorthand): `<enum-name> = [ choice, choice, ... ]`
     longer valid.)
 19. **Membership (normative, not grammar).** A used symbol or value must belong
     to the enum's definition, and the definition must be in scope (present at a
-    higher position in the document). This is a binding across distance that a
-    context-free grammar cannot express; it lives in this spec text, not in
-    `atml.abnf` — analogous to TOML's "a key may not be defined twice".
-
-## 6. Flattening
-
-20. `.atml` documents compile losslessly to standard TOML: inheritance is
-    expanded, references are resolved, enums and quantities are lowered to
-    their configured standard representations. The emitted output must
-    validate against the official, unmodified `toml.abnf` — no ATML
-    construct may leak through. Detection of reference and inheritance cycles
-    is a required part of the resolution pass. (Detailed resolution
-    semantics: in progress.)
+    higher position in the document). A direct value use is linked to its enum
+    by **key name, globally**: a declaration `port[] = [ … ]` binds every later
+    `port = …` regardless of the table it appears in, so admins can declare
+    standard enums once at the top of a document. This is a binding across
+    distance that a context-free grammar cannot express; it lives in this spec
+    text, not in `atml.abnf` — analogous to TOML's "a key may not be defined
+    twice".
