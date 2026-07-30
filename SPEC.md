@@ -99,18 +99,46 @@ in a concrete, meaningful grouping table rather than an abstract template)
 often dissolves the need for a template entirely, and is the recommended
 first approach.
 
-## 5. Type-Safe Enums
+## 5. Enums
 
-Syntax: `mode = OperationalMode::Active`, namespaced: `net::Mode::Active`.
+An enum is a datatype with a fixed set of predefined choices. A choice is
+either a bare symbol (an identifier such as `Active`) or an ordinary TOML
+value (a string, number, boolean, …). Both kinds may be mixed in one enum.
 
-15. An enum has **at least two segments** separated by `::`; multi-level
-    namespaces are allowed.
-16. Segments follow Rust identifier conventions: they start with a letter or
-    underscore, followed by letters, digits, or underscores — no hyphens.
+There are two definition forms:
+
+Marked (universal): `<enum-name>[] = [ choice, choice, ... ]`
+Markerless (shorthand): `<enum-name> = [ choice, choice, ... ]`
+
+15. **Marked declaration.** The `[]` marker on the key makes the entry an enum
+    regardless of its contents. Because `[` and `]` cannot occur in a TOML
+    key, the form is collision-free and additive. This is the general form and
+    the only one that can carry a list of purely ordinary values (e.g. ports
+    `[110, 111, 143]`), since such a list is otherwise indistinguishable from
+    a plain array.
+16. **Markerless declaration.** Valid ATML as well, but it acts as an enum
+    only when the list does not parse as a plain TOML array — that is, when it
+    contains at least one bare symbol. A list of purely ordinary values stays
+    a plain array under the precedence rule of section 4. The grammar is
+    permissive here; that precedence rule performs the demotion.
+17. **Choice form.** A bare symbol starts with a letter or underscore, then
+    letters, digits, or underscores (no hyphen). An ordinary value is any
+    standard TOML value. A definition list holds at least one choice.
+18. **Use.** A symbol is referenced as `<enum-name>::<symbol>` with exactly one
+    `::`. An ordinary value is used directly (e.g. `port = 111`). Since a TOML
+    key cannot contain `::`, namespacing uses ordinary dotted keys, e.g.
+    `probe.Strategy::Passive` for an enum declared as `probe.Strategy[] = [ … ]`.
+    (This supersedes the earlier multi-`::` reference form; `a::b::c` is no
+    longer valid.)
+19. **Membership (normative, not grammar).** A used symbol or value must belong
+    to the enum's definition, and the definition must be in scope (present at a
+    higher position in the document). This is a binding across distance that a
+    context-free grammar cannot express; it lives in this spec text, not in
+    `atml.abnf` — analogous to TOML's "a key may not be defined twice".
 
 ## 6. Flattening
 
-17. `.atml` documents compile losslessly to standard TOML: inheritance is
+20. `.atml` documents compile losslessly to standard TOML: inheritance is
     expanded, references are resolved, enums and quantities are lowered to
     their configured standard representations. The emitted output must
     validate against the official, unmodified `toml.abnf` — no ATML

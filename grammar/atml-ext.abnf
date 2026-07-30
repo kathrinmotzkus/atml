@@ -54,17 +54,60 @@ atml-inherit-table = std-table-open key ws %x3A ws key
                      *( ws %x2C ws key ) std-table-close
 
 ;; -----------------------------------------------------------------
-;; Type-Safe Enums
-;; Multi-level: Type::Variant or net::Mode::Active (>= 2 segments).
-;; Segments follow Rust identifier conventions: start with a letter or
-;; underscore, then letters/digits/underscore (no hyphen).
-;; Collision-free: "::" exists in no standard TOML value, and Local Time
-;; (07:32) uses only single colons after digits.
+;; Enums
+;; An enum is a datatype with a fixed set of predefined choices. A choice
+;; is either a bare symbol (an identifier like Active) or an ordinary TOML
+;; value (a string, number, boolean, ...). Both may be mixed in one enum.
+;;
+;; Two definition forms:
+;;
+;;   Marked (universal):   <enum-name>[] = [ choice, choice, ... ]
+;;     The "[]" marker makes the declaration an enum regardless of its
+;;     contents. This is the general form and the only one that can carry a
+;;     list of purely ordinary values (e.g. ports [110, 111, 143]), since
+;;     such a list is indistinguishable from a plain array without a marker.
+;;
+;;   Markerless (shorthand):   <enum-name> = [ choice, choice, ... ]
+;;     Valid ATML too, but only acts as an enum when the list does not parse
+;;     as a plain TOML array -- i.e. when it contains at least one bare
+;;     symbol. A list of purely ordinary values stays a plain array under
+;;     the precedence rule of spec section 4. The grammar below is permissive;
+;;     that precedence rule performs the demotion, so it is not encoded here.
+;;
+;; Usage:
+;;   - a symbol is referenced as   <enum-name>::<symbol>   (exactly one "::")
+;;   - an ordinary value is used directly (e.g. port = 111)
+;;   Namespacing uses ordinary dotted keys: probe.Strategy::Passive,
+;;   defined by probe.Strategy[] = [ ... ] or probe.Strategy = [ ... ].
+;;
+;; Membership -- a used symbol/value must belong to the enum's definition,
+;; which must be in scope (declared at a higher position) -- is a binding
+;; across distance. It lives in the normative spec text, not in this grammar.
 
-val =/ atml-enum
+;; Marked declaration is a whole key/value entry (the LHS carries "[]").
+keyval =/ atml-enum-decl
+atml-enum-decl = key %x5B.5D keyval-sep atml-enum-list
 
-atml-enum     = atml-enum-seg 1*( %x3A.3A atml-enum-seg )   ; seg "::" seg ...
-atml-enum-seg = ( ALPHA / underscore ) *( ALPHA / DIGIT / underscore )
+;; Markerless declaration is just a value (an enum list on the RHS).
+val =/ atml-enum-list
+
+;; Reference is a value.
+val =/ atml-enum-ref
+
+;; A symbol: start with a letter or underscore, then letters/digits/underscore.
+atml-enum-symbol = ( ALPHA / underscore ) *( ALPHA / DIGIT / underscore )
+
+;; Reference: TOML key, then "::", then one symbol.
+atml-enum-ref = key %x3A.3A atml-enum-symbol
+
+;; A choice is a bare symbol or any ordinary TOML value.
+atml-enum-choice = atml-enum-symbol / val
+
+;; The bracketed, comma-separated list of at least one choice.
+;; Reuses the TOML array delimiters and inner whitespace/comment handling.
+atml-enum-list  = array-open atml-enum-items ws-comment-newline array-close
+atml-enum-items = ws-comment-newline atml-enum-choice ws-comment-newline array-sep atml-enum-items
+atml-enum-items =/ ws-comment-newline atml-enum-choice ws-comment-newline [ array-sep ]
 
 ;; -----------------------------------------------------------------
 ;; Array-of-Tables Inheritance  (spec decision #13, implemented)

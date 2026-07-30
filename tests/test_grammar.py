@@ -42,9 +42,22 @@ VAL_CASES = [
     ("server.defaults.read_timeout", True), ("a.b", True), ("_p.k", True),
     ("db.conn-pool.max-size", True),
     ("defaults", False), ("a.3", False), ("a..b", False), ("a. b", False),
-    # --- Feature 4: Enums ---
-    ("OperationalMode::Active", True), ("net::Mode::Active", True), ("_m::_v", True),
-    ("Mode::", False), ("::A", False), ("Mode::2fast", False), ("Mode::Fast-Lane", False),
+    # --- Enums: reference <enum-name>::<symbol> (exactly one "::") ---
+    ("Strategy::Passive", True), ("probe.Strategy::Passive", True), ("_m::_v", True),
+    ("Strategy::", False), ("::Passive", False), ("Strategy::2fast", False),
+    ("Strategy::Fast-Lane", False), ("probe::Strategy::Passive", False),
+    # --- Enums: markerless definition (value side); needs >=1 bare symbol ---
+    ("[Active, Passive]", True), ("[Active]", True), ("[ tcp , udp ]", True),
+    ('[variant1, "variant2", false, 3.14]', True),
+]
+
+# Marked enum declaration is a whole keyval line (LHS carries "[]").
+KEYVAL_CASES = [
+    ("port[] = [110, 111, 143]", True),
+    ("Strategy[] = [Active, Passive]", True),
+    ('mixed[] = [variant1, "variant2", false, 3.14]', True),
+    ("empty[] = []", False),            # at least one choice required
+    ("plain = [1, 2, 3]", True),        # ordinary keyval still fine
 ]
 
 TABLE_CASES = [
@@ -61,9 +74,11 @@ TABLE_CASES = [
 
 FULL_ATML_DOC = (
     "# Integration of all four features\r\n"
+    "Strategy = [Active, Passive]\r\n"
+    "\r\n"
     "[server.defaults]\r\n"
     "read_timeout = 500ms\r\n"
-    "mode = OperationalMode::Active\r\n"
+    "mode = Strategy::Active\r\n"
     "port = 0xFF\r\n"
     "\r\n"
     "[cache : server.defaults]\r\n"
@@ -71,7 +86,7 @@ FULL_ATML_DOC = (
     "limit = 16_384MiB\r\n"
     "\r\n"
     "[edge : server.defaults, cache]\r\n"
-    "level = net::Cache::Aggressive\r\n"
+    "mode = Strategy::Passive\r\n"
 )
 
 TOML_REGRESSION_DOC = (
@@ -91,12 +106,17 @@ for text, expected in TABLE_CASES:
     if got != expected:
         fails += 1
         print(f"FAIL table {text!r}: expected={expected} got={got}")
+for text, expected in KEYVAL_CASES:
+    got = accepts("keyval", text)
+    if got != expected:
+        fails += 1
+        print(f"FAIL keyval {text!r}: expected={expected} got={got}")
 for name, doc in [("full ATML document", FULL_ATML_DOC),
                   ("TOML regression document", TOML_REGRESSION_DOC)]:
     if not accepts("toml", doc):
         fails += 1
         print(f"FAIL {name} does not parse")
 
-total = len(VAL_CASES) + len(TABLE_CASES) + 2
+total = len(VAL_CASES) + len(TABLE_CASES) + len(KEYVAL_CASES) + 2
 print(f"{total - fails}/{total} tests passed.")
 raise SystemExit(1 if fails else 0)
