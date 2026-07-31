@@ -1,0 +1,46 @@
+# SI units — a catalog for ATML, written in ATML (dogfooding).
+#
+# Atoms (base units, named derived units, prefixes) are listed as bare symbols.
+# Composed units that use an exponent (^ or unicode superscript), a rate (/),
+# or a product (*) are listed as string values, because they are not bare
+# symbols. Exponents are now supported by ATML, so area, volume, acceleration,
+# and similar are expressible (m^2 / m², m/s^2 / m/s²).
+#
+# Where an SI symbol is a non-ASCII character, an ASCII form is used, because
+# symbols inside unit names are still an open point in the spec:
+#   ohm = Ohm (Ω),  degC = degree Celsius (°C),  u = micro prefix (µ).
+#
+# A tool validates a quantity's unit by splitting it into an optional prefix
+# plus a base or derived unit (with optional exponent and super-unit), and
+# checking the parts against these enums. Some symbols intentionally appear in
+# two enums (e.g. T = tera prefix and tesla unit); disambiguation is the tool's
+# job, not the catalog's.
+
+# The 7 SI base units.
+BaseUnit[] = [m, kg, s, A, K, mol, cd]
+
+# The 22 named derived units (ASCII forms for ohm and degC).
+DerivedUnit[] = [
+  Hz, N, Pa, J, W, C, V, F, ohm, S, Wb, T, H,
+  degC, lm, lx, Bq, Gy, Sv, kat, rad, sr
+]
+
+# The 24 SI prefixes (ASCII form u for the micro prefix).
+Prefix[] = [
+  q, r, y, z, a, f, p, n, u, m, c, d,
+  da, h, k, M, G, T, P, E, Z, Y, R, Q
+]
+
+# Common coherent units composed via exponents and rates. Listed as strings
+# because they contain "^", "/", or "*" and so are not bare symbols. Both the
+# caret and the unicode-superscript spelling are valid ATML.
+ComposedUnit[] = [
+  "m^2",       # area
+  "m^3",       # volume
+  "m/s",       # speed
+  "m/s^2",     # acceleration
+  "kg/m^3",    # density
+  "s^-1",      # per second (equivalent to Hz)
+  "N*m",       # torque (dimensionally equal to J)
+  "kg*m/s^2"   # force (dimensionally equal to N)
+]

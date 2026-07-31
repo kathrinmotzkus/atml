@@ -6,6 +6,10 @@ spec-version = "1.0"
 created = 2026-07-27T09:30:00+02:00   # standard TOML offset date-time
 maintenance-window = 04:15            # standard TOML local time
 
+# ATML Feature 4: enums, declared before use
+Strategy[]     = [ Passive, Active ]
+ReportFormat[] = [ Sarif, Junit, Text ]
+
 # ---------------------------------------------------------------
 # Plain TOML: nothing below this comment uses ATML features.
 # ---------------------------------------------------------------
@@ -36,7 +40,7 @@ retry-backoff = 2e2ms                 # floats with exponents work too
 max-payload = 16_384KiB
 disk-quota = 2GiB
 pressure-floor = 0bar                 # collision-free: 0b needs binary digits
-mode = probe::Strategy::Passive       # ATML Feature 4: namespaced enum
+mode = Strategy::Passive              # ATML Feature 4: enum reference
 
 # ---------------------------------------------------------------
 # ATML Feature 3: Table inheritance (first parent wins; child overrides)
@@ -44,7 +48,7 @@ mode = probe::Strategy::Passive       # ATML Feature 4: namespaced enum
 
 [probe.aggressive : probe.defaults]
 connect-timeout = 80ms                # override
-mode = probe::Strategy::Active
+mode = Strategy::Active
 
 [probe.audit : probe.defaults, probe.aggressive]
 # inherits everything from probe.defaults first, then probe.aggressive

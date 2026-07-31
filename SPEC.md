@@ -34,6 +34,8 @@ semantic and intentionally not expressible in ABNF.
 
 Syntax: a decimal number immediately followed by a unit, e.g. `timeout = 123ms`,
 `limit = 16_384MiB`, `gain = -40dB`, `warmup = 1.5s`, `rate = 1e3Hz`.
+A quantity may additionally carry an optional **super-unit** for rates and
+products, e.g. `price = 1.80EUR/L`, `energy = 40EUR/kWh`, `torque = 5N*m`.
 
 5. **Decimal base only.** The numeric base is a decimal integer (including
    underscores and sign) or a numeric float. Hexadecimal, octal, and binary
@@ -46,11 +48,39 @@ Syntax: a decimal number immediately followed by a unit, e.g. `timeout = 123ms`,
    a precise, positively encoded collision exclusion with hexadecimal
    literals, requiring no lookahead. `b` and `o` need no exclusion because
    binary and octal literals require digits; `0bar` and `0ohm` are valid
-   quantities.
-8. **ATML validates syntax, not the semantics of units.** Units are defined
-   by the author of the file, not by ATML or TOML. Unusual but collision-free
-   units (e.g. `0xenon`) are grammatically valid; style concerns belong in a
-   linter, not in the grammar.
+   quantities. **Optional super-unit (rate / product):** after the unit a
+   quantity may carry a separator and a further unit —
+   `<value><unit>[<sep><super-unit>]`. The separator is `/` ("per") or `*`
+   ("times"), e.g. `1.80EUR/L`, `40EUR/kWh`, `100km/h`, `5N*m`. **Exponents:**
+   a unit (and a super-unit) may carry an exponent in two interchangeable forms
+   — a caret `^` with optional sign and digits (`m^2`, `m^3`, `s^-1`,
+   `9.81m/s^2`) or a Unicode superscript (`m²`, `m³`, `m⁻¹`, `9.81m/s²`). The
+   caret form keeps digits behind `^`, so a bare unit never gains a digit and
+   the hexadecimal collision stays impossible; superscripts are non-ASCII and
+   equally collision-free. All of this stays collision-free overall: `/`, `*`,
+   and `^` occur in no TOML value, and a unit must still begin with a letter, so
+   `1/2` and `2024/01` are not quantities.
+8. **ATML validates syntax, not the semantics of units.** Units, separators, and
+   super-units — everything after `<value>` — are defined by the author, not by
+   ATML or TOML; unusual but collision-free units (e.g. `0xenon`) are
+   grammatically valid, and style concerns belong in a linter. The allowed set
+   of units, separators, and super-units *may* additionally be constrained by
+   author-defined enums (e.g. `Separator[] = ["/", "*"]`; separators are quoted
+   string values, since `/` is not a bare symbol). That constraint is a semantic
+   layer, **not** enforced by the grammar; it is recommended where a parser
+   benefits from a fixed, validated set, and tools should document whether they
+   apply it.
+
+**Partly resolved — special characters in units.** Exponents are now covered
+(see #7): area, volume, and rates like `m²`/`m^2`, `m³`/`m^3`, `m/s²`/`m/s^2`
+are expressible. What remains **open** is non-ASCII **symbols inside unit
+names** — the micro prefix `µ`, `Ω`, `°`, `Å`, and subscripts such as the `₂`
+in `SpO₂`. These currently must be spelled with letters (`u`, `ohm`, `degC`,
+`SpO2`-style). Allowing them raises a Unicode-in-units question, and several are
+hard to type — an authoring concern as much as a grammar one. Plain **digits**
+directly inside a unit (`m2`, `m3`) remain disallowed on purpose: exponents use
+the caret or superscript instead, which keeps the hexadecimal collision
+(`0x1F`) impossible. This symbol question is deliberately left open.
 
 ## 3. Bare Path References
 

@@ -1,0 +1,353 @@
+# Vehicle rental -- ATML worked example.
+#
+# Demonstrates: table inheritance (base -> type -> subclass), multiple
+# inheritance (a fleet entry inherits one class and one drive), array-of-tables
+# inheritance for the fleet, six enums, and quantities with units, rates, and
+# exponents. Locale frame: European Union.
+#
+# Note: the base template is [vehicle]; the concrete fleet is [[fleet]] -- a
+# name cannot be both a table and an array-of-tables in TOML.
+
+# --------------------------------------------------------------------------
+# Enums (declared once, at the top).
+# --------------------------------------------------------------------------
+DriveType[]          = [Petrol, Diesel, Electric, NaturalGas, Hydrogen, Muscle]
+Location[]           = [Berlin, Hamburg, Munich, Cologne]
+Status[]             = [available, rented, maintenance, reserved]
+EnvironmentalClass[] = [A, B, C, D]
+LocalEmissions[]     = [zero, combustion]
+LicenceClass[]       = [AM, A1, A2, A, B, C1, C, CE, D]
+
+# --------------------------------------------------------------------------
+# Base: every rentable vehicle. Rental-intrinsic values.
+# --------------------------------------------------------------------------
+[vehicle]
+currency          = "EUR"
+min_rental_period = 1d
+status            = Status::available   # default; a fleet entry may override
+
+# --------------------------------------------------------------------------
+# Class axis (build). type -> subclass; each inherits the base transitively.
+# --------------------------------------------------------------------------
+[class.truck : vehicle]
+wheels = 4
+seats  = 3
+
+[class.truck.light : class.truck]
+licence_class = LicenceClass::B
+cargo_volume  = 20m^3
+deposit       = 500EUR
+base_rate     = 89EUR
+
+[class.truck.medium : class.truck]
+licence_class = LicenceClass::C1
+cargo_volume  = 40m^3
+deposit       = 1000EUR
+base_rate     = 149EUR
+
+[class.truck.heavy : class.truck]
+wheels        = 6
+seats         = 2
+licence_class = LicenceClass::CE
+cargo_volume  = 90m^3
+deposit       = 2500EUR
+base_rate     = 299EUR
+
+[class.car : vehicle]
+wheels        = 4
+licence_class = LicenceClass::B
+
+[class.car.small : class.car]
+seats        = 4
+cargo_volume = 0.3m^3
+deposit      = 200EUR
+base_rate    = 39EUR
+
+[class.car.compact : class.car]
+seats        = 5
+cargo_volume = 0.5m^3
+deposit      = 250EUR
+base_rate    = 49EUR
+
+[class.car.estate : class.car]
+seats        = 5
+cargo_volume = 1.5m^3
+deposit      = 300EUR
+base_rate    = 59EUR
+
+[class.car.van : class.car]
+seats        = 7
+cargo_volume = 4m^3
+deposit      = 400EUR
+base_rate    = 79EUR
+
+[class.twowheeler : vehicle]
+wheels       = 2
+cargo_volume = 0m^3
+
+[class.twowheeler.motorized : class.twowheeler]
+seats         = 2
+licence_class = LicenceClass::A
+deposit       = 300EUR
+base_rate     = 45EUR
+
+[class.twowheeler.ebike : class.twowheeler]
+seats     = 1
+deposit   = 150EUR
+base_rate = 25EUR
+
+[class.twowheeler.bicycle : class.twowheeler]
+seats     = 1
+deposit   = 80EUR
+base_rate = 15EUR
+
+# --------------------------------------------------------------------------
+# Drive axis (vehicle-independent). Standalone templates (not vehicles).
+# --------------------------------------------------------------------------
+[drive.petrol]
+drive               = DriveType::Petrol
+energy_source       = "petrol"
+environmental_class = EnvironmentalClass::D
+local_emissions     = LocalEmissions::combustion
+rate_modifier       = 1.00
+energy_cost         = 1.80EUR/L
+
+[drive.diesel]
+drive               = DriveType::Diesel
+energy_source       = "diesel"
+environmental_class = EnvironmentalClass::D
+local_emissions     = LocalEmissions::combustion
+rate_modifier       = 1.00
+energy_cost         = 1.70EUR/L
+
+[drive.electric]
+drive               = DriveType::Electric
+energy_source       = "electricity"
+environmental_class = EnvironmentalClass::A
+local_emissions     = LocalEmissions::zero
+rate_modifier       = 1.15
+energy_cost         = 0.40EUR/kWh
+
+[drive.naturalgas]
+drive               = DriveType::NaturalGas
+energy_source       = "natural_gas"
+environmental_class = EnvironmentalClass::C
+local_emissions     = LocalEmissions::combustion
+rate_modifier       = 0.95
+energy_cost         = 1.20EUR/kg
+
+[drive.hydrogen]
+drive               = DriveType::Hydrogen
+energy_source       = "hydrogen"
+environmental_class = EnvironmentalClass::B
+local_emissions     = LocalEmissions::zero
+rate_modifier       = 1.20
+energy_cost         = 12.00EUR/kg
+
+[drive.muscle]
+drive               = DriveType::Muscle
+energy_source       = "human"
+environmental_class = EnvironmentalClass::A
+local_emissions     = LocalEmissions::zero
+rate_modifier       = 0.50
+# no energy_cost: muscle has no energy carrier
+
+# --------------------------------------------------------------------------
+# The concrete fleet: array-of-tables, each inheriting one class + one drive
+# (class first, drive second). Only per-vehicle values appear here; every
+# class and drive value comes from the templates above via inheritance.
+# --------------------------------------------------------------------------
+
+[[fleet : class.car.compact, drive.electric]]
+id          = "CE-01"
+location    = Location::Berlin
+range       = 350km
+charge_time = 30min
+
+[[fleet : class.car.compact, drive.electric]]
+id          = "CE-02"
+location    = Location::Hamburg
+status      = Status::rented
+range       = 350km
+charge_time = 30min
+
+[[fleet : class.car.compact, drive.electric]]
+id          = "CE-03"
+location    = Location::Munich
+range       = 350km
+charge_time = 30min
+
+[[fleet : class.car.compact, drive.electric]]
+id          = "CE-04"
+location    = Location::Cologne
+range       = 350km
+charge_time = 30min
+
+[[fleet : class.car.compact, drive.electric]]
+id          = "CE-05"
+location    = Location::Berlin
+range       = 350km
+charge_time = 30min
+
+[[fleet : class.car.compact, drive.diesel]]
+id          = "CD-01"
+location    = Location::Hamburg
+status      = Status::rented
+range       = 900km
+tank_capacity = 50L
+
+[[fleet : class.car.compact, drive.diesel]]
+id          = "CD-02"
+location    = Location::Munich
+range       = 900km
+tank_capacity = 50L
+
+[[fleet : class.car.compact, drive.diesel]]
+id          = "CD-03"
+location    = Location::Cologne
+range       = 900km
+tank_capacity = 50L
+
+[[fleet : class.car.compact, drive.diesel]]
+id          = "CD-04"
+location    = Location::Berlin
+range       = 900km
+tank_capacity = 50L
+
+[[fleet : class.car.small, drive.petrol]]
+id          = "SP-01"
+location    = Location::Hamburg
+range       = 700km
+tank_capacity = 40L
+
+[[fleet : class.car.small, drive.petrol]]
+id          = "SP-02"
+location    = Location::Munich
+status      = Status::rented
+range       = 700km
+tank_capacity = 40L
+
+[[fleet : class.car.small, drive.petrol]]
+id          = "SP-03"
+location    = Location::Cologne
+range       = 700km
+tank_capacity = 40L
+
+[[fleet : class.car.small, drive.petrol]]
+id          = "SP-04"
+location    = Location::Berlin
+range       = 700km
+tank_capacity = 40L
+
+[[fleet : class.car.van, drive.diesel]]
+id          = "VD-01"
+location    = Location::Hamburg
+status      = Status::maintenance
+range       = 850km
+tank_capacity = 70L
+
+[[fleet : class.car.van, drive.diesel]]
+id          = "VD-02"
+location    = Location::Munich
+range       = 850km
+tank_capacity = 70L
+
+[[fleet : class.truck.light, drive.petrol]]
+id          = "TP-01"
+location    = Location::Cologne
+range       = 650km
+tank_capacity = 80L
+
+[[fleet : class.truck.light, drive.petrol]]
+id          = "TP-02"
+location    = Location::Berlin
+range       = 650km
+tank_capacity = 80L
+
+[[fleet : class.truck.light, drive.petrol]]
+id          = "TP-03"
+location    = Location::Hamburg
+range       = 650km
+tank_capacity = 80L
+
+[[fleet : class.truck.medium, drive.diesel]]
+id          = "TM-01"
+location    = Location::Munich
+range       = 1100km
+tank_capacity = 150L
+
+[[fleet : class.truck.medium, drive.diesel]]
+id          = "TM-02"
+location    = Location::Cologne
+range       = 1100km
+tank_capacity = 150L
+
+[[fleet : class.twowheeler.ebike, drive.electric]]
+id          = "EB-01"
+location    = Location::Berlin
+range       = 60km
+charge_time = 4h
+
+[[fleet : class.twowheeler.ebike, drive.electric]]
+id          = "EB-02"
+location    = Location::Hamburg
+range       = 60km
+charge_time = 4h
+
+[[fleet : class.twowheeler.ebike, drive.electric]]
+id          = "EB-03"
+location    = Location::Munich
+status      = Status::rented
+range       = 60km
+charge_time = 4h
+
+[[fleet : class.twowheeler.ebike, drive.electric]]
+id          = "EB-04"
+location    = Location::Cologne
+range       = 60km
+charge_time = 4h
+
+[[fleet : class.twowheeler.ebike, drive.electric]]
+id          = "EB-05"
+location    = Location::Berlin
+range       = 60km
+charge_time = 4h
+
+[[fleet : class.twowheeler.ebike, drive.electric]]
+id          = "EB-06"
+location    = Location::Hamburg
+range       = 60km
+charge_time = 4h
+
+[[fleet : class.twowheeler.bicycle, drive.muscle]]
+id          = "BC-01"
+location    = Location::Munich
+
+[[fleet : class.twowheeler.bicycle, drive.muscle]]
+id          = "BC-02"
+location    = Location::Cologne
+
+[[fleet : class.twowheeler.bicycle, drive.muscle]]
+id          = "BC-03"
+location    = Location::Berlin
+
+[[fleet : class.twowheeler.bicycle, drive.muscle]]
+id          = "BC-04"
+location    = Location::Hamburg
+
+[[fleet : class.twowheeler.bicycle, drive.muscle]]
+id          = "BC-05"
+location    = Location::Munich
+status      = Status::maintenance
+
+[[fleet : class.twowheeler.bicycle, drive.muscle]]
+id          = "BC-06"
+location    = Location::Cologne
+
+[[fleet : class.twowheeler.bicycle, drive.muscle]]
+id          = "BC-07"
+location    = Location::Berlin
+
+[[fleet : class.twowheeler.bicycle, drive.muscle]]
+id          = "BC-08"
+location    = Location::Hamburg

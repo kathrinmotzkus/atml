@@ -38,6 +38,21 @@ number type (`123`, `1.5`, `16_384`); `unit` is a quoted string. Examples:
 - `limits = [512MiB, 1GiB]` →
   `limits = [ { value = 512, unit = "MiB" }, { value = 1, unit = "GiB" } ]`
 
+A quantity that carries a **super-unit** (rate / product, SPEC §2 #7) lowers to
+two additional fields: `separator` (the `/` or `*`, recorded because it
+distinguishes a rate from a product) and `super_unit`. An **exponent** stays
+inside the unit token as-is; the lowerer does not interpret it (consistent with
+"ATML validates unit syntax, not semantics"). When there is no super-unit, the
+`separator` and `super_unit` fields are omitted. Examples:
+
+- `price = 1.80EUR/L` →
+  `price = { value = 1.80, unit = "EUR", separator = "/", super_unit = "L" }`
+- `torque = 5N*m` →
+  `torque = { value = 5, unit = "N", separator = "*", super_unit = "m" }`
+- `area = 20m^3` → `area = { value = 20, unit = "m^3" }`
+- `accel = 9.81m/s^2` →
+  `accel = { value = 9.81, unit = "m", separator = "/", super_unit = "s^2" }`
+
 ### 2.2 Enum symbol-reference lowering
 
 A reference `<enum-name>::<symbol>` lowers to the symbol as a quoted string,
@@ -58,18 +73,33 @@ tables once identified — are lowered to valid TOML but preserved as round-trip
 hints (§3) rather than living in the main file. By default they are preserved,
 not dropped.
 
-**Template tables — identification still open.** The *treatment* is decided: a
-pure template table is preserved as a hint, not emitted as live data. Still
-*open* is the *identification* — how the flattener learns that a table is a
-pure template rather than a real table with its own consumers (an explicit
-marker, a reserved namespace, or a flattener option). Regrouping the data along
-its natural shared axis often removes the need for a template entirely, and
-remains the recommended first approach.
+**Template tables — a configurable flattener policy.** Which tables count as
+templates is not hard-wired; the flattener offers the user a choice of policy
+when it runs:
+
+- **`auto` (default):** a table used anywhere as an inheritance parent is
+  treated as a template — its keys are merged into its descendants, it is
+  preserved as a hint (§3), and it is not emitted as a live table. Concrete
+  tables (never a parent) are emitted live. For the vehicle example this yields
+  a main file containing only the resolved fleet. A **per-table override** lets
+  the user force an individual table to be kept live or treated as a template
+  when `auto` misjudges the rare table that is both a parent and real data.
+- **`emit-all`:** every table is emitted live with its resolved values,
+  templates included. Safest (nothing is ever suppressed), but the output
+  carries the template scaffolding.
+- **`explicit`:** nothing is auto-detected; the user names the tables or
+  namespaces that are templates, and only those are treated as such.
+
+Regrouping the data along its natural shared axis often removes the need for a
+template entirely, and remains a good first modelling instinct.
 
 ## 3. Round-trip hints (the sidecar file)
 
-To keep the flattened `<name>.toml` readable, the flattener does **not**
-interleave `#[atml]` markers throughout the main file. Instead:
+Every lowered construct is hinted — quantities, enum references, expanded
+inheritance, resolved path references, enum declarations, and template tables —
+so reconstruction is exact rather than guessed. To keep the flattened
+`<name>.toml` readable, the flattener does **not** interleave `#[atml]` markers
+throughout the main file. Instead:
 
 - `<name>.toml` stays clean and carries a single header comment, e.g.
 
@@ -155,14 +185,17 @@ guaranteed original. It is therefore neither flattening nor re-flattening.
 
 - **Build lifting, and name it?** Whether to implement the arbitrary-TOML→ATML
   tool, and its final name (candidates: *lifting*, *DRY-ification*).
-- **Template identification** (see §2.4): how a pure template table is
-  recognized so it can be preserved as a hint rather than emitted live.
-- **Hint granularity:** which lowered constructs need a hint. A lowered symbol
-  reference (`"Active"`) and a resolved path reference look like ordinary
-  values; a lowered quantity (`{value, unit}`) looks like an ordinary inline
-  table; expanded inheritance hides its origin. None is reliably recognizable
-  from the live value alone, so reliable round-trip needs a hint at each — but
-  the flattener could also offer a lighter mode that hints only declarations.
+- **Template identification** (resolved, see §2.4): a configurable flattener
+  policy — `auto` (parent-used = template, the default, with per-table
+  override), `emit-all`, or `explicit`.
+- **Super-unit lowering field names** (resolved, see §2.1): `value`, `unit`,
+  `separator`, `super_unit`; the exponent stays inside the unit token.
+- **Hint granularity** (resolved): the flattener hints **every** lowered
+  construct — quantities, enum references, expanded inheritance, resolved path
+  references, plus the enum declarations and template tables. The rule is
+  trivially "always", reconstruction is exact rather than best-effort guessing,
+  and the sidecar becomes a key-path-indexed trace of the original ATML — which
+  matches its role as "how it was before".
 
 *Resolved by the sidecar design of §3:* the earlier questions about
 inline-marker noise, the source of truth after a manual edit, and inline-marker

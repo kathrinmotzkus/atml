@@ -37,6 +37,15 @@ VAL_CASES = [
     ("16_384MiB", True), ("1.5s", True), ("1e3Hz", True), ("-40dB", True), ("+0K", True),
     ("0xenon", True), ("0xms", True), ("0xFFGG", True),  # collision-free x-units
     ("0x", False),
+    # --- Mixed Quantities with an optional super-unit (rate/product) ---
+    ("1.80EUR/L", True), ("40EUR/kWh", True), ("5N*m", True), ("100km/h", True),
+    ("0EUR/L", True),
+    ("1/2", False), ("2024/01", False), ("1.80EUR/", False),
+    # --- Exponents on units (caret and unicode superscript, both allowed) ---
+    ("5m^2", True), ("10m^3", True), ("2s^-1", True), ("9.81m/s^2", True),
+    ("5m\u00b2", True), ("10m\u00b3", True), ("2s\u207b\u00b9", True),
+    ("9.81m/s\u00b2", True), ("0m^2", True),
+    ("m^2", False), ("2^3", False),
     ("infms", False), ("nanGiB", False), ("07ms", False),
     # --- Feature 2: Bare Path References ---
     ("server.defaults.read_timeout", True), ("a.b", True), ("_p.k", True),

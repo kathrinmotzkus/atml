@@ -12,6 +12,28 @@ lossless flattening to standard TOML.
 * **MIME type:** `application/vnd.atml`
 * **Baseline:** TOML v1.1.0
 
+## Where ATML sits
+
+ATML stays entirely within TOML's job: a declarative, readable format for
+configuration *data*. It exists because plain TOML, at real scale, hits three
+recurring pain points — and ATML adds exactly those three, nothing more:
+
+* **Repetition.** TOML cannot share values between tables, so large or
+  matrix-like configs repeat the same data again and again. Table inheritance
+  lets a shared value be written once and inherited.
+* **Units live outside the value.** A `350` is just a number; its unit survives
+  only in a comment or baked into the key name. Quantities let a value carry its
+  unit as data — `350km`, `1.80EUR/L`, `20m^3`.
+* **Fixed-choice fields go unchecked.** A status or a mode is a bare string,
+  with the allowed set living only in the author's head. Enums declare the
+  choices once and check references against them.
+
+Everything else about TOML is untouched: ATML is a strict superset, so every
+valid TOML document is already valid ATML. And adopting it costs nothing
+downstream — ATML **flattens to standard TOML**: the same data, in a file that
+every existing TOML tool, in any language, reads unchanged. The convenience is
+at authoring time; what you ship can be plain TOML.
+
 ## Features
 
 * 🚀 **TOML v1.1 Baseline:** Every valid TOML 1.1 document is valid ATML.
@@ -21,7 +43,7 @@ lossless flattening to standard TOML.
 * 🔗 **Bare Path References:** Assign values dynamically via
   `host = server.defaults.host`.
 * 🏷️ **Type-Safe Enums:** Explicit enum references
-  (`mode = SystemMode::Active`, namespaced: `net::Mode::Active`).
+  (`mode = SystemMode::Active`, namespaced via dotted keys: `net.Mode::Active`).
 * ⏱️ **Mixed Quantities:** Native unquoted values with unit suffixes
   (`timeout = 123ms`, `limit = 16_384MiB`).
 * 🔄 **Compliant Flattening:** Easily compiles back to 100% standard TOML.
@@ -50,6 +72,11 @@ tools/validate_atml.py    Validator: grammar + enum membership + inheritance
 tests/test_validator.py   Validator test suite
 SPEC.md                   Normative language specification
 PARSER.md                 Conversion operations (flatten / re-flatten / lift)
+ABNF.md                   Introduction to ABNF and the notation used here
+EXAMPLE.md                Worked example (vehicle rental) — design and metrics
+catalog/si-units.atml     SI units catalog, written in ATML
+examples/vehicle-rental.atml   Worked example in ATML
+examples/vehicle-rental.toml   The same fleet in plain TOML, for comparison
 ```
 
 The extension file contains only `=/` incremental alternatives and new

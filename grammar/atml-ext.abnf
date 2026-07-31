@@ -5,25 +5,46 @@ val =/ atml-quantity
 
 ;; Base: strictly decimal (integer or numeric float).
 ;; Never hex/oct/bin (prefix exclusion), never inf/nan (no special-float).
-atml-quantity  = atml-zero atml-zero-unit
-atml-quantity =/ atml-signed-zero atml-unit
-atml-quantity =/ atml-nonzero-dec atml-unit
-atml-quantity =/ atml-float-num atml-unit
+atml-quantity  = atml-zero atml-zero-unit [ atml-super ]
+atml-quantity =/ atml-signed-zero atml-unit [ atml-super ]
+atml-quantity =/ atml-nonzero-dec atml-unit [ atml-super ]
+atml-quantity =/ atml-float-num atml-unit [ atml-super ]
 
 atml-zero        = %x30                                    ; bare "0"
 atml-signed-zero = ( minus / plus ) %x30                   ; "+0" / "-0" (collision-free)
 atml-nonzero-dec = [ minus / plus ] digit1-9 *( DIGIT / underscore DIGIT )
 atml-float-num   = float-int-part ( exp / frac [ exp ] )   ; 1.5 / 0.5 / 1e3, no inf/nan
 
-;; Unit: letters only (ms, s, KiB, MiB, GiB, Hz, px, bar, ohm, ...)
-atml-unit = 1*ALPHA
+;; Unit: letters, optionally followed by an exponent (m^2, m^3, s^-1; or unicode).
+atml-unit = 1*ALPHA [ atml-exp ]
+
+;; Exponent, in two interchangeable forms (both allowed):
+;;   caret:       "^" ["-"] digits    -> m^2, m^3, s^-1
+;;   superscript: unicode digits      -> e.g. U+00B2 (squared), U+00B3 (cubed)
+;; The caret form keeps digits behind "^", so a bare unit never gains a digit
+;; and the hexadecimal collision (0x1F) stays impossible -- no reliance on the
+;; precedence rule. Superscripts are non-ASCII and equally collision-free.
+atml-exp       = atml-exp-caret / atml-exp-super
+atml-exp-caret = %x5E [ %x2D ] 1*DIGIT            ; "^" ["-"] digits
+atml-exp-super = [ %x207B ] 1*atml-sup-digit      ; superscript minus then digits
+atml-sup-digit = %xB9 / %xB2 / %xB3 / %x2070 / %x2074-2079   ; superscript 0-9
+
+;; Optional super-unit for rates/products: a separator plus a further unit
+;; (which may itself carry an exponent, e.g. m/s^2).
+;; Separator is "/" (per) or "*" (times), e.g. 1.80EUR/L, 5N*m.
+;; Collision-free: neither "/" nor "*" occurs in any TOML value, and the
+;; super-unit sits after a valid unit. The set of separators, units, and
+;; super-units MAY be constrained by author-defined enums (a semantic layer,
+;; not enforced by the grammar).
+atml-super = atml-sep 1*ALPHA [ atml-exp ]
+atml-sep   = %x2F / %x2A                          ; "/" or "*"
 
 ;; Unit after a bare "0":
 ;; b/o are harmless (bin/oct require digits). Only lowercase "x" collides
 ;; with hex, and only when ALL following characters are hex letters.
 ;; Encoded positively: after "x" at least one non-hex letter must follow.
-atml-zero-unit  = atml-alpha-no-x *ALPHA
-atml-zero-unit =/ %x78 *atml-hex-alpha atml-nonhex-alpha *ALPHA
+atml-zero-unit  = atml-alpha-no-x *ALPHA [ atml-exp ]
+atml-zero-unit =/ %x78 *atml-hex-alpha atml-nonhex-alpha *ALPHA [ atml-exp ]
 
 atml-alpha-no-x   = %x41-5A / %x61-77 / %x79-7A   ; A-Z, a-w, y-z
 atml-hex-alpha    = %x41-46 / %x61-66             ; A-F, a-f
