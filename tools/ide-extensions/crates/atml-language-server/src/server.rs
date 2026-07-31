@@ -4,7 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use atml_language_core::{analyze, Analysis, SymbolKind};
+use atml_language_core::SymbolKind;
 use crossbeam_channel::RecvTimeoutError;
 use lsp_server::{Connection, Message, Notification, Request, Response};
 use lsp_types::{
@@ -62,7 +62,7 @@ pub fn run() -> Result<(), Box<dyn Error + Send + Sync>> {
                     if connection.handle_shutdown(&request)? {
                         break;
                     }
-                    handle_request(&connection, &documents, request)?;
+                    handle_request(&connection, &mut documents, request)?;
                 }
                 Message::Notification(notification) => {
                     handle_notification(&connection, &mut documents, &mut pending, notification)?
@@ -72,7 +72,7 @@ pub fn run() -> Result<(), Box<dyn Error + Send + Sync>> {
             Err(RecvTimeoutError::Timeout) => {}
             Err(RecvTimeoutError::Disconnected) => break,
         }
-        publish_due_analyses(&connection, &documents, &mut pending)?;
+        publish_due_analyses(&connection, &mut documents, &mut pending)?;
     }
 
     drop(connection);
@@ -83,7 +83,7 @@ pub fn run() -> Result<(), Box<dyn Error + Send + Sync>> {
 
 fn handle_request(
     connection: &Connection,
-    documents: &Documents,
+    documents: &mut Documents,
     request: Request,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     if request.method != DOCUMENT_SYMBOL_METHOD {
@@ -98,7 +98,7 @@ fn handle_request(
     let id = request.id.clone();
     let params: DocumentSymbolParams = serde_json::from_value(request.params)?;
     let result = documents
-        .get(&params.text_document.uri)
+        .get_mut(&params.text_document.uri)
         .map(document_symbols)
         .unwrap_or_default();
     let response = Response::new_ok(
@@ -165,7 +165,7 @@ fn schedule_analysis(
 
 fn publish_due_analyses(
     connection: &Connection,
-    documents: &Documents,
+    documents: &mut Documents,
     pending: &mut HashMap<String, PendingAnalysis>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let now = Instant::now();
@@ -177,7 +177,7 @@ fn publish_due_analyses(
 
     for key in due {
         if let Some(analysis) = pending.remove(&key) {
-            if let Some(document) = documents.get(&analysis.uri) {
+            if let Some(document) = documents.get_mut(&analysis.uri) {
                 if document.version == analysis.version {
                     eprintln!(
                         "analyzing {} at version {}",
@@ -195,12 +195,11 @@ fn publish_due_analyses(
 fn publish_diagnostics(
     connection: &Connection,
     uri: lsp_types::Uri,
-    document: &OpenDocument,
+    document: &mut OpenDocument,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let analysis = analyze(&document.text);
-    let diagnostics = analysis
-        .diagnostics
-        .into_iter()
+    let core_diagnostics = document.analysis().diagnostics.clone();
+    let diagnostics = core_diagnostics
+        .iter()
         .map(|diagnostic| LspDiagnostic {
             range: lsp_types::Range::new(
                 byte_to_position(&document.text, diagnostic.range.start),
@@ -209,7 +208,7 @@ fn publish_diagnostics(
             severity: Some(DiagnosticSeverity::ERROR),
             code: Some(lsp_types::NumberOrString::String(diagnostic.code.into())),
             source: Some("atml".into()),
-            message: diagnostic.message,
+            message: diagnostic.message.clone(),
             ..LspDiagnostic::default()
         })
         .collect();
@@ -232,8 +231,7 @@ fn send_diagnostics(
     Ok(())
 }
 
-fn document_symbols(document: &OpenDocument) -> Vec<DocumentSymbol> {
-    let Analysis { symbols, .. } = analyze(&document.text);
+fn document_symbols(document: &mut OpenDocument) -> Vec<DocumentSymbol> {
     fn convert(document: &OpenDocument, symbol: atml_language_core::Symbol) -> DocumentSymbol {
         let range = lsp_types::Range::new(
             byte_to_position(&document.text, symbol.range.start),
@@ -260,7 +258,10 @@ fn document_symbols(document: &OpenDocument) -> Vec<DocumentSymbol> {
             children: (!children.is_empty()).then_some(children),
         }
     }
-    symbols
+    document
+        .analysis()
+        .symbols
+        .clone()
         .into_iter()
         .map(|symbol| convert(document, symbol))
         .collect()

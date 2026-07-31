@@ -199,6 +199,13 @@ server logging, VS Code language registration, and tested TextMate highlighting.
 During a development run, the extension starts the server through Cargo;
 release builds will place a native binary in `vscode-atml/bin/`.
 
+Stage 2 is complete as well. Every valid document snapshot now carries an
+editor-neutral semantic index containing key and table definitions, value
+types, enum definitions and choices, enum and path references, quantities,
+inheritance edges, direct and transitive targets, and graph cycles. The index
+uses UTF-8 source ranges and stable definition IDs and is cached until the next
+document version arrives.
+
 From this directory, verify the Rust workspace with:
 
 ```sh

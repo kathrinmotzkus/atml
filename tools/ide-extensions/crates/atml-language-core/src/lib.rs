@@ -1,5 +1,12 @@
 //! Editor-independent analysis for ATML documents.
 
+mod semantic;
+
+pub use semantic::{
+    CycleKind, Definition, DefinitionId, DefinitionKind, InheritanceEdge, QuantityOccurrence,
+    Reference, ReferenceKind, SemanticCycle, SemanticIndex, ValueType,
+};
+
 use toml_dom::{Document, DocumentItem, TomlError};
 
 /// A half-open UTF-8 byte range in the source document.
@@ -33,10 +40,11 @@ pub struct Symbol {
 }
 
 /// Result of analyzing one immutable source snapshot.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Analysis {
     pub diagnostics: Vec<Diagnostic>,
     pub symbols: Vec<Symbol>,
+    pub semantic: Option<SemanticIndex>,
 }
 
 /// Parse and index a complete ATML document snapshot.
@@ -45,10 +53,12 @@ pub fn analyze(source: &str) -> Analysis {
         Ok(document) => Analysis {
             diagnostics: Vec::new(),
             symbols: collect_symbols(source, &document),
+            semantic: Some(SemanticIndex::build(source, &document)),
         },
         Err(error) => Analysis {
             diagnostics: vec![diagnostic_from_error(source, &error)],
             symbols: Vec::new(),
+            semantic: None,
         },
     }
 }

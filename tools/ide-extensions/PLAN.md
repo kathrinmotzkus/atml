@@ -63,6 +63,11 @@ GitHub-Actions-CI abgesichert.
 
 ## Meilenstein 2: Semantisches ATML-Modell
 
+**Status: abgeschlossen.** `atml-language-core` erzeugt pro gültigem
+Dokumentsnapshot einen editorneutralen semantischen Index mit stabilen
+Definition-IDs, Typen und UTF-8-Quellbereichen. Der Server hält diesen Index
+zusammen mit der Syntaxanalyse im Cache der jeweiligen Dokumentversion.
+
 ### Aufgaben
 
 1. Aus dem `toml_dom`-Dokument einen editorneutralen Symbolindex aufbauen:
@@ -218,14 +223,13 @@ Diese Arbeiten begleiten jeden Meilenstein:
 
 ## Unmittelbar nächste Arbeitseinheit
 
-Als Nächstes beginnt Meilenstein 2 in dieser Reihenfolge:
+Als Nächstes beginnt Meilenstein 3 in dieser Reihenfolge:
 
-1. editorneutrale Symboltypen und semantische Indexstruktur festlegen
-2. Schlüssel, Tabellen und Quantities indizieren
-3. Enum-Definitionen, Mitglieder und Verwendungen indizieren
-4. Bare Path References und Vererbungsbeziehungen indizieren
-5. Auflösungs- und Zyklentests mit den offiziellen Beispielen ergänzen
+1. semantische Diagnosecodes und Schweregrade festlegen
+2. vorhandene Auflösungsfehler aus `toml_dom` korrekt kategorisieren
+3. Enum-Mitgliedschaft und Definition-vor-Verwendung prüfen
+4. Vererbungsziele und Elterntypen prüfen
+5. mehrere unabhängige Diagnosen in einem Dokument ermöglichen
 
-Das technische Fundament ist damit stabil genug, um den semantischen Index zu
-entwickeln, ohne gleichzeitig grundlegende Transport- und Positionsprobleme
-lösen zu müssen.
+Der semantische Index liefert dafür Definitionen, direkte und transitive Ziele,
+Vererbungsketten und erkannte Graphzyklen, ohne LSP-Typen in den Kern zu ziehen.

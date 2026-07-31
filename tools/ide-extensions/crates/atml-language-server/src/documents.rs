@@ -1,11 +1,19 @@
 use std::collections::HashMap;
 
+use atml_language_core::{analyze, Analysis};
 use lsp_types::{Position, Range, TextDocumentContentChangeEvent, Uri};
 
 #[derive(Debug, Clone)]
 pub struct OpenDocument {
     pub version: i32,
     pub text: String,
+    analysis: Option<Analysis>,
+}
+
+impl OpenDocument {
+    pub fn analysis(&mut self) -> &Analysis {
+        self.analysis.get_or_insert_with(|| analyze(&self.text))
+    }
 }
 
 #[derive(Debug, Default)]
@@ -15,7 +23,14 @@ pub struct Documents {
 
 impl Documents {
     pub fn open(&mut self, uri: Uri, version: i32, text: String) {
-        self.open.insert(uri, OpenDocument { version, text });
+        self.open.insert(
+            uri,
+            OpenDocument {
+                version,
+                text,
+                analysis: None,
+            },
+        );
     }
 
     pub fn change(
@@ -39,6 +54,7 @@ impl Documents {
             }
         }
         document.version = version;
+        document.analysis = None;
         Some(document)
     }
 
@@ -46,8 +62,13 @@ impl Documents {
         self.open.remove(uri);
     }
 
+    #[cfg(test)]
     pub fn get(&self, uri: &Uri) -> Option<&OpenDocument> {
         self.open.get(uri)
+    }
+
+    pub fn get_mut(&mut self, uri: &Uri) -> Option<&mut OpenDocument> {
+        self.open.get_mut(uri)
     }
 }
 
@@ -169,5 +190,26 @@ mod tests {
 
         assert!(result.is_none());
         assert_eq!(documents.get(&uri).unwrap().text, "value = 5\n");
+    }
+
+    #[test]
+    fn analysis_is_cached_and_invalidated_by_a_new_version() {
+        let uri: Uri = "file:///cached.atml".parse().unwrap();
+        let mut documents = Documents::default();
+        documents.open(uri.clone(), 1, "value = 1\n".into());
+        assert!(documents.get(&uri).unwrap().analysis.is_none());
+        documents.get_mut(&uri).unwrap().analysis();
+        assert!(documents.get(&uri).unwrap().analysis.is_some());
+
+        documents.change(
+            &uri,
+            2,
+            vec![TextDocumentContentChangeEvent {
+                range: None,
+                range_length: None,
+                text: "value = 2\n".into(),
+            }],
+        );
+        assert!(documents.get(&uri).unwrap().analysis.is_none());
     }
 }
