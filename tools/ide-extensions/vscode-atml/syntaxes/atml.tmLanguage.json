@@ -1,0 +1,119 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "ATML",
+  "scopeName": "source.atml",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#inherited-tables" },
+    { "include": "#tables" },
+    { "include": "#enum-declarations" },
+    { "include": "#enum-references" },
+    { "include": "#quantities" },
+    { "include": "#booleans" },
+    { "include": "#date-times" },
+    { "include": "#numbers" },
+    { "include": "#keys" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.number-sign.atml", "match": "#.*$" }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.block.atml",
+          "begin": "\\\"\\\"\\\"",
+          "end": "\\\"\\\"\\\"",
+          "patterns": [{ "name": "constant.character.escape.atml", "match": "\\\\(?:[\\\"\\\\befnrt]|x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})" }]
+        },
+        { "name": "string.quoted.single.block.atml", "begin": "'''", "end": "'''" },
+        {
+          "name": "string.quoted.double.atml",
+          "begin": "\\\"",
+          "end": "\\\"",
+          "patterns": [{ "name": "constant.character.escape.atml", "match": "\\\\(?:[\\\"\\\\befnrt]|x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})" }]
+        },
+        { "name": "string.quoted.single.atml", "begin": "'", "end": "'" }
+      ]
+    },
+    "inherited-tables": {
+      "patterns": [
+        {
+          "name": "meta.table.inherited.atml",
+          "match": "^(\\s*)(\\[\\[?)([^]#]+?)(\\s*):(\\s*)([^]#]+)(\\]\\]?)",
+          "captures": {
+            "2": { "name": "punctuation.definition.table.begin.atml" },
+            "3": { "name": "entity.name.type.table.atml" },
+            "4": { "name": "keyword.operator.inheritance.atml" },
+            "6": { "name": "entity.other.inherited-table.atml" },
+            "7": { "name": "punctuation.definition.table.end.atml" }
+          }
+        }
+      ]
+    },
+    "tables": {
+      "patterns": [
+        {
+          "name": "meta.table.atml",
+          "match": "^(\\s*)(\\[\\[?)([^]#]+)(\\]\\]?)",
+          "captures": {
+            "2": { "name": "punctuation.definition.table.begin.atml" },
+            "3": { "name": "entity.name.type.table.atml" },
+            "4": { "name": "punctuation.definition.table.end.atml" }
+          }
+        }
+      ]
+    },
+    "enum-declarations": {
+      "patterns": [
+        {
+          "match": "^\\s*([A-Za-z0-9_.-]+)(\\[\\])(?=\\s*=)",
+          "captures": {
+            "1": { "name": "entity.name.type.enum.atml" },
+            "2": { "name": "storage.type.enum.atml" }
+          }
+        }
+      ]
+    },
+    "enum-references": {
+      "patterns": [
+        {
+          "match": "((?:[A-Za-z0-9_-]+\\.)*[A-Za-z0-9_-]+)(::)([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "entity.name.type.enum.atml" },
+            "2": { "name": "punctuation.accessor.double-colon.atml" },
+            "3": { "name": "constant.other.enum-member.atml" }
+          }
+        }
+      ]
+    },
+    "quantities": {
+      "patterns": [
+        {
+          "match": "(?<![A-Za-z0-9_])([+-]?(?:[0-9][0-9_]*(?:\\.[0-9][0-9_]*)?(?:[eE][+-]?[0-9][0-9_]*)?))([A-Za-z]+(?:\\^-?[0-9]+|[⁻]?[⁰¹²³⁴⁵⁶⁷⁸⁹]+)?)(?:([/*])([A-Za-z]+(?:\\^-?[0-9]+|[⁻]?[⁰¹²³⁴⁵⁶⁷⁸⁹]+)?))?",
+          "captures": {
+            "1": { "name": "constant.numeric.atml" },
+            "2": { "name": "support.type.unit.atml" },
+            "3": { "name": "keyword.operator.unit.atml" },
+            "4": { "name": "support.type.unit.atml" }
+          }
+        }
+      ]
+    },
+    "booleans": {
+      "patterns": [{ "name": "constant.language.boolean.atml", "match": "\\b(?:true|false)\\b" }]
+    },
+    "date-times": {
+      "patterns": [{ "name": "constant.other.datetime.atml", "match": "\\b[0-9]{4}-[0-9]{2}-[0-9]{2}(?:[Tt ][0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:\\.[0-9]+)?)?(?:[Zz]|[+-][0-9]{2}:[0-9]{2})?)?\\b" }]
+    },
+    "numbers": {
+      "patterns": [{ "name": "constant.numeric.atml", "match": "(?<![A-Za-z0-9_])[+-]?(?:0x[0-9A-Fa-f_]+|0o[0-7_]+|0b[01_]+|(?:[0-9][0-9_]*)(?:\\.[0-9][0-9_]*)?(?:[eE][+-]?[0-9][0-9_]*)?|inf|nan)\\b" }]
+    },
+    "keys": {
+      "patterns": [{ "name": "variable.other.key.atml", "match": "^\\s*(?:[A-Za-z0-9_-]+|\\\"[^\\\"]+\\\"|'[^']+')(?:\\s*\\.\\s*(?:[A-Za-z0-9_-]+|\\\"[^\\\"]+\\\"|'[^']+'))*(?=\\s*=)" }]
+    }
+  }
+}

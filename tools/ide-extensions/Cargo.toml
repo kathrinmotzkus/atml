@@ -1,0 +1,20 @@
+[workspace]
+members = [
+    "crates/atml-language-core",
+    "crates/atml-language-server",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/kathrinmotzkus/atml"
+rust-version = "1.85"
+
+[workspace.dependencies]
+atml-language-core = { path = "crates/atml-language-core" }
+lsp-server = "0.10.0"
+lsp-types = "0.97.0"
+serde_json = "1.0"
+toml_dom = "0.4"

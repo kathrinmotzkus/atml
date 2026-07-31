@@ -1,0 +1,16 @@
+# Rust
+target/
+
+# Node / TypeScript
+node_modules/
+out/
+dist/
+coverage/
+
+# VS Code extension packages and bundled binaries
+*.vsix
+vscode-atml/bin/
+
+# Local editor and operating-system files
+.DS_Store
+*.log

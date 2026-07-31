@@ -1,0 +1,94 @@
+{
+  "name": "atml",
+  "displayName": "ATML Language Support",
+  "description": "Syntax highlighting and language intelligence for Advanced TOML (ATML)",
+  "version": "0.1.0",
+  "publisher": "kathrinmotzkus",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kathrinmotzkus/atml.git"
+  },
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "keywords": [
+    "atml",
+    "toml",
+    "configuration",
+    "language server"
+  ],
+  "activationEvents": [
+    "onLanguage:atml",
+    "onCommand:atml.restartServer"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "atml",
+        "aliases": [
+          "ATML",
+          "atml"
+        ],
+        "extensions": [
+          ".atml"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "atml",
+        "scopeName": "source.atml",
+        "path": "./syntaxes/atml.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "atml.restartServer",
+        "title": "ATML: Restart Language Server"
+      }
+    ],
+    "configuration": {
+      "title": "ATML",
+      "properties": {
+        "atml.server.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Path to a custom atml-language-server executable. Leave empty to use the bundled server or the Cargo development server."
+        },
+        "atml.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "scope": "window",
+          "description": "Trace communication between VS Code and the ATML language server."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "clean": "node -e \"require('fs').rmSync('out', { recursive: true, force: true })\"",
+    "compile": "tsc -p ./",
+    "check": "tsc -p ./ --noEmit",
+    "vscode:prepublish": "npm run clean && npm run compile"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^10.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "@types/vscode": "^1.125.0",
+    "typescript": "^7.0.2"
+  }
+}
