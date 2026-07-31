@@ -26,7 +26,7 @@ impl Documents {
     ) -> Option<&OpenDocument> {
         let document = self.open.get_mut(uri)?;
         if version <= document.version {
-            return Some(document);
+            return None;
         }
 
         for change in changes {
@@ -123,5 +123,51 @@ mod tests {
         );
 
         assert_eq!(documents.get(&uri).unwrap().text, "name = \"ATML\"\n");
+    }
+
+    #[test]
+    fn incremental_changes_handle_ascii_umlauts_and_non_bmp_characters() {
+        let uri: Uri = "file:///unicode.atml".parse().unwrap();
+        let mut documents = Documents::default();
+        documents.open(uri.clone(), 1, "value = \"Aä😀Z\"\n".into());
+
+        let cases = [
+            (2, Position::new(0, 9), Position::new(0, 10), "B"),
+            (3, Position::new(0, 10), Position::new(0, 11), "ö"),
+            (4, Position::new(0, 11), Position::new(0, 13), "🎉"),
+        ];
+        for (version, start, end, replacement) in cases {
+            documents.change(
+                &uri,
+                version,
+                vec![TextDocumentContentChangeEvent {
+                    range: Some(Range::new(start, end)),
+                    range_length: None,
+                    text: replacement.into(),
+                }],
+            );
+        }
+
+        assert_eq!(documents.get(&uri).unwrap().text, "value = \"Bö🎉Z\"\n");
+    }
+
+    #[test]
+    fn stale_document_versions_are_ignored() {
+        let uri: Uri = "file:///versioned.atml".parse().unwrap();
+        let mut documents = Documents::default();
+        documents.open(uri.clone(), 5, "value = 5\n".into());
+
+        let result = documents.change(
+            &uri,
+            4,
+            vec![TextDocumentContentChangeEvent {
+                range: None,
+                range_length: None,
+                text: "value = 4\n".into(),
+            }],
+        );
+
+        assert!(result.is_none());
+        assert_eq!(documents.get(&uri).unwrap().text, "value = 5\n");
     }
 }

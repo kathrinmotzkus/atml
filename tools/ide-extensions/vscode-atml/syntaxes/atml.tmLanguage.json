@@ -9,6 +9,7 @@
     { "include": "#tables" },
     { "include": "#enum-declarations" },
     { "include": "#enum-references" },
+    { "include": "#path-references" },
     { "include": "#quantities" },
     { "include": "#booleans" },
     { "include": "#date-times" },
@@ -86,6 +87,16 @@
             "1": { "name": "entity.name.type.enum.atml" },
             "2": { "name": "punctuation.accessor.double-colon.atml" },
             "3": { "name": "constant.other.enum-member.atml" }
+          }
+        }
+      ]
+    },
+    "path-references": {
+      "patterns": [
+        {
+          "match": "(=\\s*)((?:[A-Za-z_][A-Za-z0-9_-]*\\.)+[A-Za-z_][A-Za-z0-9_-]*)",
+          "captures": {
+            "2": { "name": "variable.other.reference.atml" }
           }
         }
       ]

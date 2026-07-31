@@ -29,6 +29,7 @@ pub struct Symbol {
     pub name: String,
     pub kind: SymbolKind,
     pub range: ByteRange,
+    pub children: Vec<Symbol>,
 }
 
 /// Result of analyzing one immutable source snapshot.
@@ -68,17 +69,41 @@ fn diagnostic_from_error(source: &str, error: &TomlError) -> Diagnostic {
 }
 
 fn collect_symbols(source: &str, document: &Document) -> Vec<Symbol> {
-    let mut symbols = Vec::new();
+    struct IndexedSymbol {
+        symbol: Symbol,
+    }
+
+    fn node_mut<'a>(nodes: &'a mut [IndexedSymbol], indices: &[usize]) -> &'a mut Symbol {
+        let node = &mut nodes[indices[0]];
+        if indices.len() == 1 {
+            &mut node.symbol
+        } else {
+            symbol_mut(&mut node.symbol.children, &indices[1..])
+        }
+    }
+
+    fn symbol_mut<'a>(nodes: &'a mut [Symbol], indices: &[usize]) -> &'a mut Symbol {
+        let node = &mut nodes[indices[0]];
+        if indices.len() == 1 {
+            node
+        } else {
+            symbol_mut(&mut node.children, &indices[1..])
+        }
+    }
+
+    let mut roots: Vec<IndexedSymbol> = Vec::new();
     let mut cursor = 0;
+    let mut current_section: Option<Vec<usize>> = None;
+    let mut known_sections: Vec<(Vec<String>, Vec<usize>)> = Vec::new();
 
     for item in document.items() {
-        let (needle, name, kind) = match item {
+        let (needle, semantic_path, kind) = match item {
             DocumentItem::Entry { node, path } => {
-                (node.raw_key.as_str(), path.join("."), SymbolKind::Key)
+                (node.raw_key.as_str(), path.clone(), SymbolKind::Key)
             }
             DocumentItem::Section(section) => (
                 section.raw.as_str(),
-                section.path.join("."),
+                section.path.clone(),
                 if section.is_array {
                     SymbolKind::ArrayOfTables
                 } else {
@@ -91,16 +116,54 @@ fn collect_symbols(source: &str, document: &Document) -> Vec<Symbol> {
         if let Some(relative) = source[cursor..].find(needle) {
             let start = cursor + relative;
             let end = start + needle.len();
-            symbols.push(Symbol {
+            let parent = if kind == SymbolKind::Key {
+                current_section.clone()
+            } else {
+                known_sections
+                    .iter()
+                    .filter(|(candidate, _)| {
+                        candidate.len() < semantic_path.len()
+                            && semantic_path.starts_with(candidate)
+                    })
+                    .max_by_key(|(candidate, _)| candidate.len())
+                    .map(|(_, indices)| indices.clone())
+            };
+            let name = if kind == SymbolKind::Key {
+                needle.trim().trim_end_matches("[]").to_owned()
+            } else if parent.is_some() {
+                semantic_path.last().cloned().unwrap_or_default()
+            } else {
+                semantic_path.join(".")
+            };
+            let symbol = Symbol {
                 name,
                 kind,
                 range: ByteRange { start, end },
-            });
+                children: Vec::new(),
+            };
+
+            if let Some(indices) = parent {
+                let parent = node_mut(&mut roots, &indices);
+                parent.children.push(symbol);
+                if kind != SymbolKind::Key {
+                    let mut child_indices = indices;
+                    child_indices.push(parent.children.len() - 1);
+                    current_section = Some(child_indices.clone());
+                    known_sections.push((semantic_path, child_indices));
+                }
+            } else {
+                roots.push(IndexedSymbol { symbol });
+                if kind != SymbolKind::Key {
+                    let indices = vec![roots.len() - 1];
+                    current_section = Some(indices.clone());
+                    known_sections.push((semantic_path, indices));
+                }
+            }
             cursor = end;
         }
     }
 
-    symbols
+    roots.into_iter().map(|node| node.symbol).collect()
 }
 
 fn line_column_to_byte(source: &str, line: u32, column: u32) -> usize {
@@ -166,5 +229,29 @@ mod tests {
 
         assert!(source.is_char_boundary(range.start));
         assert!(source.is_char_boundary(range.end));
+    }
+
+    #[test]
+    fn tables_contain_keys_and_subtables() {
+        let result = analyze(
+            "root_key = 1\n\
+             [server]\n\
+             host = \"localhost\"\n\
+             [server.tls]\n\
+             enabled = true\n",
+        );
+
+        let server = result
+            .symbols
+            .iter()
+            .find(|symbol| symbol.name == "server")
+            .unwrap();
+        assert!(server.children.iter().any(|symbol| symbol.name == "host"));
+        let tls = server
+            .children
+            .iter()
+            .find(|symbol| symbol.name == "tls")
+            .unwrap();
+        assert!(tls.children.iter().any(|symbol| symbol.name == "enabled"));
     }
 }

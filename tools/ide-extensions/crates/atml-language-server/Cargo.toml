@@ -14,6 +14,7 @@ path = "src/main.rs"
 
 [dependencies]
 atml-language-core.workspace = true
+crossbeam-channel.workspace = true
 lsp-server.workspace = true
 lsp-types.workspace = true
 serde_json.workspace = true

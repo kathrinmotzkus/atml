@@ -23,3 +23,44 @@ jobs:
         run: git diff --exit-code grammar/atml.abnf
       - name: Run grammar test suite
         run: python tests/test_grammar.py
+
+  ide-rust:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/ide-extensions
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy,rustfmt
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Run Rust tests
+        run: cargo test --locked
+      - name: Run Clippy
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+  ide-vscode:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/ide-extensions/vscode-atml
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: tools/ide-extensions/vscode-atml/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install dependencies
+        run: npm ci
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+      - name: Type-check and compile
+        run: npm run check && npm run compile
+      - name: Test TextMate grammar
+        run: npm run test:grammar
+      - name: Test VS Code activation and diagnostics
+        run: xvfb-run -a npm run test:vscode

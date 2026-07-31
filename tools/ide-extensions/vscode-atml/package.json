@@ -81,6 +81,8 @@
     "clean": "node -e \"require('fs').rmSync('out', { recursive: true, force: true })\"",
     "compile": "tsc -p ./",
     "check": "tsc -p ./ --noEmit",
+    "test:grammar": "mocha --ui tdd --timeout 10000 out/test/grammar.test.js",
+    "test:vscode": "node ./out/test/runTest.js",
     "vscode:prepublish": "npm run clean && npm run compile"
   },
   "dependencies": {
@@ -88,7 +90,16 @@
   },
   "devDependencies": {
     "@types/node": "^20.19.0",
+    "@types/mocha": "^10.0.10",
     "@types/vscode": "^1.125.0",
-    "typescript": "^7.0.2"
+    "@vscode/test-electron": "^3.1.0",
+    "mocha": "^11.7.6",
+    "typescript": "^7.0.2",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
+  },
+  "overrides": {
+    "diff": "^9.0.0",
+    "serialize-javascript": "^7.0.7"
   }
 }

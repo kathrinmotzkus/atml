@@ -1,0 +1,10 @@
+# ATML highlighting fixture
+Strategy[] = [Active, Passive]
+
+[defaults]
+timeout = 500ms
+
+[cache : defaults]
+mode = Strategy::Active
+copied_timeout = defaults.timeout
+rate = 1.80EUR/L

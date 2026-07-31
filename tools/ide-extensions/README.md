@@ -193,11 +193,11 @@ changing the protocol boundary.
 
 ## First implementation milestone
 
-The Stage 1 scaffold is now present and buildable. It includes incremental
-document synchronization, parsing and syntax diagnostics, document symbols,
-the VS Code language registration, and initial TextMate highlighting. During a
-development run, the extension starts the server through Cargo; release builds
-will place a native binary in `vscode-atml/bin/`.
+Stage 1 is complete. It includes debounced, version-safe incremental document
+synchronization, parsing and syntax diagnostics, hierarchical document symbols,
+server logging, VS Code language registration, and tested TextMate highlighting.
+During a development run, the extension starts the server through Cargo;
+release builds will place a native binary in `vscode-atml/bin/`.
 
 From this directory, verify the Rust workspace with:
 
@@ -213,10 +213,13 @@ cd vscode-atml
 npm install
 npm run check
 npm run compile
+npm run test:grammar
 ```
 
 Open `vscode-atml` in VS Code and press F5 to start an Extension Development
 Host. Opening an `.atml` file there starts the Rust server automatically.
+The full VS Code smoke test requires Node.js 22 and can be run with
+`npm run test:vscode`; Linux CI executes it under Xvfb.
 
 The first milestone is complete when a locally installed development extension
 opens an `.atml` file, starts the Rust server, parses it with `toml_dom 0.4`,

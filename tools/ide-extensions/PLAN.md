@@ -28,6 +28,10 @@ Das Grundgerüst der Entwicklungsstufe 1 ist vorhanden:
 
 ## Meilenstein 1: Grundgerüst stabilisieren
 
+**Status: abgeschlossen.** Der Meilenstein wird durch Rust-Unit- und
+Prozesstests, TextMate-Token-Tests, einen echten VS-Code-Smoke-Test und die
+GitHub-Actions-CI abgesichert.
+
 ### Aufgaben
 
 1. Einen echten LSP-Integrationstest ergänzen, der den Server als Prozess
@@ -214,15 +218,14 @@ Diese Arbeiten begleiten jeden Meilenstein:
 
 ## Unmittelbar nächste Arbeitseinheit
 
-Als Nächstes wird Meilenstein 1 in dieser Reihenfolge umgesetzt:
+Als Nächstes beginnt Meilenstein 2 in dieser Reihenfolge:
 
-1. LSP-Prozess-Integrationstest
-2. verzögerte, versionssichere Analyse
-3. hierarchische Dokument-Symbole
-4. Highlighting-Fixture und visuelle Kontrolle
-5. VS-Code-Aktivierungs-Smoke-Test
-6. CI-Workflow für Rust und TypeScript
+1. editorneutrale Symboltypen und semantische Indexstruktur festlegen
+2. Schlüssel, Tabellen und Quantities indizieren
+3. Enum-Definitionen, Mitglieder und Verwendungen indizieren
+4. Bare Path References und Vererbungsbeziehungen indizieren
+5. Auflösungs- und Zyklentests mit den offiziellen Beispielen ergänzen
 
-Danach ist das technische Fundament stabil genug, um den semantischen Index zu
-entwickeln, ohne gleichzeitig noch grundlegende Transport- und
-Positionsprobleme lösen zu müssen.
+Das technische Fundament ist damit stabil genug, um den semantischen Index zu
+entwickeln, ohne gleichzeitig grundlegende Transport- und Positionsprobleme
+lösen zu müssen.
