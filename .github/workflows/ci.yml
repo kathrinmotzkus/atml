@@ -151,7 +151,7 @@ jobs:
         shell: bash
         run: |
           python -m pip install ziglang==0.14.1
-          cargo install cargo-zigbuild --version 0.23.0 --locked
+          cargo +1.94.1 install cargo-zigbuild --version 0.23.0 --locked
       - name: Install locked Node dependencies
         run: npm ci
       - name: Build locked native language server
