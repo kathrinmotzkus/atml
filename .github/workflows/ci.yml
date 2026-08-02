@@ -161,7 +161,7 @@ jobs:
       - name: Build glibc-compatible native language server
         if: matrix.glibc != ''
         working-directory: tools/ide-extensions
-        run: cargo zigbuild --locked --release --target ${{ matrix.rust_target }}.${{ matrix.glibc }} -p atml-language-server
+        run: cargo +1.94.1 zigbuild --locked --release --target ${{ matrix.rust_target }}.${{ matrix.glibc }} -p atml-language-server
       - name: Verify minimum glibc version
         if: matrix.glibc != ''
         shell: bash
