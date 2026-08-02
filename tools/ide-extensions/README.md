@@ -40,6 +40,8 @@ the language server starts.
 ide-extensions/
 ├── README.md
 ├── FORMATTING.md                # format-preserving formatter contract
+├── RELEASING.md                 # six-target VSIX release procedure
+├── rust-toolchain.toml          # pinned release toolchain
 ├── Cargo.toml                   # Rust workspace
 ├── crates/
 │   ├── atml-language-core/
@@ -61,6 +63,11 @@ ide-extensions/
 │           └── documents.rs     # open document/version management
 └── vscode-atml/
     ├── package.json
+    ├── README.md                # Marketplace documentation
+    ├── CHANGELOG.md
+    ├── LICENSE
+    ├── images/icon.png
+    ├── scripts/                 # package, normalize and verify VSIX
     ├── tsconfig.json
     ├── language-configuration.json
     ├── syntaxes/atml.tmLanguage.json
@@ -239,6 +246,14 @@ inheritance parents. The separate [formatting contract](FORMATTING.md) defines
 the required DST/CST invariants; formatting is not advertised until those
 invariants have an implementation and fixture coverage.
 
+Stage 7 release preparation produces six target-specific packages for Linux,
+Windows, and macOS on x64 and ARM64. The TypeScript client and its runtime
+dependencies are bundled into one JavaScript file; each VSIX contains exactly
+one native Rust server. Rust, VSCE, esbuild, and both dependency lockfiles are
+pinned. Packaging normalizes ZIP order and timestamps, verifies an allowlisted
+content shape, and emits SHA-256 checksums. The CI release matrix and protected
+publication procedure are documented in [RELEASING.md](RELEASING.md).
+
 | Diagnostic code | Meaning |
 |---|---|
 | `atml.syntax.parse-error` | malformed TOML or ATML syntax |
@@ -270,6 +285,18 @@ npm run check
 npm run compile
 npm run test:grammar
 ```
+
+Build a local target-specific release after compiling the native server:
+
+```sh
+cd vscode-atml
+./scripts/package.sh linux-x64 ../target/release/atml-language-server
+```
+
+The script bundles the client, creates and verifies the VSIX, normalizes it for
+reproducibility, and writes a neighboring `.sha256` file. Marketplace
+publication is intentionally separate and requires the protected publisher
+credential described in `RELEASING.md`.
 
 Open `vscode-atml` in VS Code and press F5 to start an Extension Development
 Host. Opening an `.atml` file there starts the Rust server automatically.

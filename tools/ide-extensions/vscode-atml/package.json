@@ -4,10 +4,20 @@
   "description": "Syntax highlighting and language intelligence for Advanced TOML (ATML)",
   "version": "0.1.0",
   "publisher": "kathrinmotzkus",
+  "icon": "images/icon.png",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/kathrinmotzkus/atml.git"
+  },
+  "homepage": "https://github.com/kathrinmotzkus/atml/tree/main/tools/ide-extensions/vscode-atml#readme",
+  "bugs": {
+    "url": "https://github.com/kathrinmotzkus/atml/issues"
+  },
+  "qna": "https://github.com/kathrinmotzkus/atml/discussions",
+  "galleryBanner": {
+    "color": "#172554",
+    "theme": "dark"
   },
   "engines": {
     "vscode": "^1.100.0"
@@ -16,6 +26,14 @@
     "Programming Languages",
     "Linters"
   ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    }
+  },
   "keywords": [
     "atml",
     "toml",
@@ -79,20 +97,25 @@
   },
   "scripts": {
     "clean": "node -e \"require('fs').rmSync('out', { recursive: true, force: true })\"",
+    "bundle": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=out/extension.js",
     "compile": "tsc -p ./",
+    "compile:test": "tsc -p ./tsconfig.test.json",
     "check": "tsc -p ./ --noEmit",
-    "test:grammar": "mocha --ui tdd --timeout 10000 out/test/grammar.test.js",
-    "test:vscode": "node ./out/test/runTest.js",
-    "vscode:prepublish": "npm run clean && npm run compile"
+    "test:grammar": "npm run compile:test && mocha --ui tdd --timeout 10000 out-test/test/grammar.test.js",
+    "test:vscode": "npm run compile:test && node ./out-test/test/runTest.js",
+    "package:vsix": "bash ./scripts/package.sh",
+    "vscode:prepublish": "npm run clean && npm run check && npm run bundle"
   },
   "dependencies": {
     "vscode-languageclient": "^10.1.0"
   },
   "devDependencies": {
-    "@types/node": "^20.19.0",
     "@types/mocha": "^10.0.10",
-    "@types/vscode": "^1.125.0",
+    "@types/node": "^20.19.0",
+    "@types/vscode": "1.100.0",
     "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "3.9.2",
+    "esbuild": "0.28.1",
     "mocha": "^11.7.6",
     "typescript": "^7.0.2",
     "vscode-oniguruma": "^2.0.1",

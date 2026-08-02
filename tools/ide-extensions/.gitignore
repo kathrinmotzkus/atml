@@ -4,6 +4,7 @@ target/
 # Node / TypeScript
 node_modules/
 out/
+out-test/
 dist/
 coverage/
 .vscode-test/

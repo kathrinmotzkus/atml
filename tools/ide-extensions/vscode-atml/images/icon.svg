@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="ATML">
+  <rect width="256" height="256" rx="48" fill="#3730A3"/>
+  <path d="M40 48h33v15H56v130h17v15H40V48Zm143 0h33v160h-33v-15h17V63h-17V48Z" fill="#BFDBFE"/>
+  <path d="M83 178 119 76h18l36 102h-22l-8-25h-31l-8 25H83Zm35-44h19l-9-31-10 31Z" fill="#fff"/>
+  <circle cx="190" cy="97" r="8" fill="#C4B5FD"/>
+  <circle cx="190" cy="128" r="8" fill="#C4B5FD"/>
+</svg>

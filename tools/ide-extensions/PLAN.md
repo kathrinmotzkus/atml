@@ -229,15 +229,17 @@ Diese Arbeiten begleiten jeden Meilenstein:
 
 ## Umsetzungsstand und nächste Arbeitseinheit
 
-Meilenstein 6 ist abgeschlossen. Bei einer unvollständigen aktuellen Zeile
-bleibt der letzte gültige Dokumentpräfix für Sprachfunktionen verfügbar.
-Semantic Tokens ergänzen die lexikalische TextMate-Grammatik. Prepare Rename
-und Rename bearbeiten bare Schlüssel, Enums und Tabellen einschließlich ihrer
-eindeutig zugehörigen Verwendungen und lehnen Konflikte oder formatkritische
-Fälle ab. Quick Fixes korrigieren nur eindeutige Abweichungen der
-Groß-/Kleinschreibung. `FORMATTING.md` definiert die DST/CST-Invarianten, Tests
-und erste Regelmenge für eine spätere format-erhaltende Implementierung; eine
-Formatting-Capability wird vorher nicht beworben.
+Die technische Vorbereitung von Meilenstein 7 ist abgeschlossen. Marketplace-
+Texte, Icon, Lizenz und Changelog sind finalisiert. Eine CI-Matrix erzeugt sechs
+zielplattform-spezifische VSIX-Pakete für Linux, Windows und macOS auf x64 und
+ARM64. Jedes Paket enthält ein gebündeltes JavaScript und genau ein natives
+Server-Binary, wird auf unerwünschte Inhalte geprüft, deterministisch
+normalisiert und mit SHA-256 versehen. Das Linux-x64-Paket wurde reproduzierbar
+gebaut, im vollständigen Extension-Test geprüft und in ein isoliertes VS-Code-
+Profil installiert.
 
-Als Nächstes beginnt Meilenstein 7 mit den Veröffentlichungsdaten, nativen
-Server-Binaries, reproduzierbaren VSIX-Artefakten und der CI-Matrix.
+Die externe Veröffentlichung von Version `0.1.0` bleibt der geschützte letzte
+Release-Schritt. Sie setzt die Bestätigung des Marketplace-Publishers
+`kathrinmotzkus`, ein kurzlebiges `VSCE_PAT` außerhalb des Repositories, die
+sechs durch CI erzeugten Artefakte sowie die bewusste Freigabe zum Publizieren
+voraus. Der genaue Ablauf steht in `RELEASING.md`.
