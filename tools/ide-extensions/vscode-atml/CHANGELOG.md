@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+
+- Fixed inheritance hovers for array-of-tables entries so values from unrelated
+  entries and sibling parents are no longer combined.
+
 ## 0.1.1
 
 - Renamed the extension to **ATML Tools** for a distinctive Marketplace identity.
