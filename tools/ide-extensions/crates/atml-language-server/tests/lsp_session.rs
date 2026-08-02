@@ -138,6 +138,39 @@ fn complete_lsp_session_updates_diagnostics_and_symbols() {
 
     send(
         &mut input,
+        json!({
+            "jsonrpc": "2.0",
+            "method": "textDocument/didChange",
+            "params": {
+                "textDocument": { "uri": uri, "version": 5 },
+                "contentChanges": [{
+                    "text": "Mode[] = [Active]\nbad = Mode::Missing\nfirst = missing.one\nsecond = other.value\n"
+                }]
+            }
+        }),
+    );
+    let semantic = receive_method(&messages, "textDocument/publishDiagnostics");
+    assert_eq!(semantic["params"]["version"], 5);
+    let codes = semantic["params"]["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|diagnostic| diagnostic["code"].as_str().unwrap())
+        .collect::<std::collections::HashSet<_>>();
+    assert_eq!(
+        codes,
+        std::collections::HashSet::from([
+            "atml.enum.unknown-member",
+            "atml.reference.unknown-target",
+        ])
+    );
+    assert_eq!(
+        semantic["params"]["diagnostics"].as_array().unwrap().len(),
+        3
+    );
+
+    send(
+        &mut input,
         json!({"jsonrpc":"2.0","id":99,"method":"shutdown","params":null}),
     );
     assert_eq!(receive_id(&messages, 99)["result"], Value::Null);

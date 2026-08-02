@@ -206,6 +206,26 @@ inheritance edges, direct and transitive targets, and graph cycles. The index
 uses UTF-8 source ranges and stable definition IDs and is cached until the next
 document version arrives.
 
+Stage 3 adds multi-error semantic diagnostics. Unknown and cyclic path
+references, enum binding and ordering errors, missing or invalid inheritance
+parents, and inheritance cycles are reported with stable codes and exact source
+ranges. Syntax, TOML semantics, and ATML semantics remain separate categories.
+
+| Diagnostic code | Meaning |
+|---|---|
+| `atml.syntax.parse-error` | malformed TOML or ATML syntax |
+| `toml.duplicate-key` | duplicate TOML key or conflicting table definition |
+| `toml.integer-overflow` | integer outside the supported TOML range |
+| `toml.invalid-escape` | invalid TOML string escape |
+| `atml.reference.unknown-target` | missing Bare Path Reference target |
+| `atml.reference.cycle` | cyclic Bare Path Reference chain |
+| `atml.enum.unknown-definition` | reference to an unknown enum |
+| `atml.enum.unknown-member` | symbol absent from the referenced enum |
+| `atml.enum.used-before-definition` | enum referenced before its declaration |
+| `atml.inheritance.unknown-parent` | missing inherited table |
+| `atml.inheritance.invalid-parent-type` | parent is not a standard table |
+| `atml.inheritance.cycle` | cyclic table inheritance |
+
 From this directory, verify the Rust workspace with:
 
 ```sh

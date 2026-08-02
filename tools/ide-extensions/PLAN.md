@@ -96,6 +96,12 @@ zusammen mit der Syntaxanalyse im Cache der jeweiligen Dokumentversion.
 
 ## Meilenstein 3: Semantische Diagnosen
 
+**Status: abgeschlossen.** Syntax-, TOML- und ATML-Semantikfehler besitzen
+stabile Codes, Schweregrade und Originalquellbereiche. Eine positionsstabile
+Wiederherstellung ermöglicht mehrere unabhängige Referenzdiagnosen in einem
+Dokument, obwohl `toml_dom` unbekannte und zyklische Pfade bereits beim Parsen
+abweist.
+
 ### Aufgaben
 
 Diagnosen mit stabilen Codes und präzisen Quellbereichen implementieren:
@@ -223,13 +229,13 @@ Diese Arbeiten begleiten jeden Meilenstein:
 
 ## Unmittelbar nächste Arbeitseinheit
 
-Als Nächstes beginnt Meilenstein 3 in dieser Reihenfolge:
+Als Nächstes beginnt Meilenstein 4 in dieser Reihenfolge:
 
-1. semantische Diagnosecodes und Schweregrade festlegen
-2. vorhandene Auflösungsfehler aus `toml_dom` korrekt kategorisieren
-3. Enum-Mitgliedschaft und Definition-vor-Verwendung prüfen
-4. Vererbungsziele und Elterntypen prüfen
-5. mehrere unabhängige Diagnosen in einem Dokument ermöglichen
+1. Completion-Kontexte und editorneutrale Completion-Typen festlegen
+2. Enum-Mitglieder nach `Enum::` anbieten
+3. Bare Path References und Elternpfade vervollständigen
+4. sichtbare Enum-Namen und ATML-Wertformen anbieten
+5. tolerante Completion in vorübergehend unvollständigen Dokumenten testen
 
-Der semantische Index liefert dafür Definitionen, direkte und transitive Ziele,
-Vererbungsketten und erkannte Graphzyklen, ohne LSP-Typen in den Kern zu ziehen.
+Der semantische Index und die neue Diagnoseebene liefern dafür Sichtbarkeit,
+Zieltypen und robuste Teilergebnisse, ohne LSP-Typen in den Kern zu ziehen.

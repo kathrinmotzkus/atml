@@ -196,11 +196,12 @@ impl<'a> Builder<'a> {
                         range,
                         range,
                     );
-                    for parent in &section.parents {
+                    let parent_ranges = inheritance_parent_ranges(&section.raw, range.start);
+                    for (index, parent) in section.parents.iter().enumerate() {
                         self.index.inheritance.push(InheritanceEdge {
                             child_path: section.path.clone(),
                             parent_path: parent.clone(),
-                            range,
+                            range: parent_ranges.get(index).copied().unwrap_or(range),
                             parent: None,
                         });
                     }
@@ -220,6 +221,30 @@ impl<'a> Builder<'a> {
             end: value_start + node_len(&node.node),
         };
         let semantic_value = value_at_path(self.document.root(), path);
+        for prefix_len in 1..path.len() {
+            let prefix = &path[..prefix_len];
+            if prefix
+                .iter()
+                .any(|segment| segment.parse::<usize>().is_ok())
+                || self.index.definitions.iter().any(|definition| {
+                    definition.path == prefix && definition.kind == DefinitionKind::Table
+                })
+            {
+                continue;
+            }
+            if matches!(
+                value_at_path(self.document.root(), prefix),
+                Some(Value::Table(_))
+            ) {
+                self.add_definition(
+                    prefix.to_vec(),
+                    DefinitionKind::Table,
+                    ValueType::Table,
+                    key_range,
+                    key_range,
+                );
+            }
+        }
         let (kind, value_type) = match semantic_value {
             Some(Value::EnumDefinition(_)) => (DefinitionKind::Enum, ValueType::EnumDefinition),
             value => (
@@ -284,8 +309,9 @@ impl<'a> Builder<'a> {
                     start,
                     end: start + raw.as_ref().map_or(0, String::len),
                 };
-                if let Some(raw) = raw {
-                    if let Some(target_path) = parse_path_reference(raw) {
+                if raw.is_some() {
+                    let authored = &self.source[range.start..range.end];
+                    if let Some(target_path) = parse_path_reference(authored) {
                         self.index.references.push(Reference {
                             kind: ReferenceKind::Path,
                             source_path: path.to_vec(),
@@ -513,7 +539,7 @@ fn node_len(node: &ValueNode) -> usize {
     }
 }
 
-fn parse_path_reference(raw: &str) -> Option<Vec<String>> {
+pub(crate) fn parse_path_reference(raw: &str) -> Option<Vec<String>> {
     let segments = raw.split('.').collect::<Vec<_>>();
     if segments.len() < 2
         || segments.iter().any(|segment| {
@@ -527,6 +553,64 @@ fn parse_path_reference(raw: &str) -> Option<Vec<String>> {
         return None;
     }
     Some(segments.into_iter().map(str::to_owned).collect())
+}
+
+fn inheritance_parent_ranges(raw: &str, source_start: usize) -> Vec<ByteRange> {
+    let bytes = raw.as_bytes();
+    let mut quoted = None;
+    let mut escaped = false;
+    let mut colon = None;
+    for (index, byte) in bytes.iter().copied().enumerate() {
+        match quoted {
+            Some(b'"') if escaped => escaped = false,
+            Some(b'"') if byte == b'\\' => escaped = true,
+            Some(quote) if byte == quote => quoted = None,
+            Some(_) => {}
+            None if matches!(byte, b'"' | b'\'') => quoted = Some(byte),
+            None if byte == b':' => {
+                colon = Some(index);
+                break;
+            }
+            None => {}
+        }
+    }
+    let Some(colon) = colon else {
+        return Vec::new();
+    };
+    let content_end = raw.trim_end_matches(']').trim_end().len();
+    let mut ranges = Vec::new();
+    let mut start = colon + 1;
+    quoted = None;
+    escaped = false;
+    let mut index = start;
+    while index <= content_end {
+        let byte = bytes.get(index).copied();
+        let separator = index == content_end || (byte == Some(b',') && quoted.is_none());
+        if separator {
+            let segment = &raw[start..index];
+            let leading = segment.len() - segment.trim_start().len();
+            let trimmed = segment.trim();
+            if !trimmed.is_empty() {
+                let range_start = source_start + start + leading;
+                ranges.push(ByteRange {
+                    start: range_start,
+                    end: range_start + trimmed.len(),
+                });
+            }
+            start = index + 1;
+        } else if let Some(byte) = byte {
+            match quoted {
+                Some(b'"') if escaped => escaped = false,
+                Some(b'"') if byte == b'\\' => escaped = true,
+                Some(quote) if byte == quote => quoted = None,
+                Some(_) => {}
+                None if matches!(byte, b'"' | b'\'') => quoted = Some(byte),
+                None => {}
+            }
+        }
+        index += 1;
+    }
+    ranges
 }
 
 fn detect_cycles(kind: CycleKind, edges: &[(Vec<String>, Vec<String>)]) -> Vec<SemanticCycle> {

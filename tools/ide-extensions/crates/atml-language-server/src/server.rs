@@ -4,7 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use atml_language_core::SymbolKind;
+use atml_language_core::{DiagnosticSeverity as CoreDiagnosticSeverity, SymbolKind};
 use crossbeam_channel::RecvTimeoutError;
 use lsp_server::{Connection, Message, Notification, Request, Response};
 use lsp_types::{
@@ -205,7 +205,10 @@ fn publish_diagnostics(
                 byte_to_position(&document.text, diagnostic.range.start),
                 byte_to_position(&document.text, diagnostic.range.end),
             ),
-            severity: Some(DiagnosticSeverity::ERROR),
+            severity: Some(match diagnostic.severity {
+                CoreDiagnosticSeverity::Error => DiagnosticSeverity::ERROR,
+                CoreDiagnosticSeverity::Warning => DiagnosticSeverity::WARNING,
+            }),
             code: Some(lsp_types::NumberOrString::String(diagnostic.code.into())),
             source: Some("atml".into()),
             message: diagnostic.message.clone(),

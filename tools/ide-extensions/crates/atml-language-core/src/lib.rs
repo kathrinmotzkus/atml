@@ -1,5 +1,6 @@
 //! Editor-independent analysis for ATML documents.
 
+mod diagnostics;
 mod semantic;
 
 pub use semantic::{
@@ -7,7 +8,7 @@ pub use semantic::{
     Reference, ReferenceKind, SemanticCycle, SemanticIndex, ValueType,
 };
 
-use toml_dom::{Document, DocumentItem, TomlError};
+use toml_dom::{Document, DocumentItem, TomlError, TomlErrorKind};
 
 /// A half-open UTF-8 byte range in the source document.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,8 +21,15 @@ pub struct ByteRange {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Diagnostic {
     pub code: &'static str,
+    pub severity: DiagnosticSeverity,
     pub message: String,
     pub range: ByteRange,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiagnosticSeverity {
+    Error,
+    Warning,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,16 +58,36 @@ pub struct Analysis {
 /// Parse and index a complete ATML document snapshot.
 pub fn analyze(source: &str) -> Analysis {
     match Document::parse_atml(source) {
-        Ok(document) => Analysis {
-            diagnostics: Vec::new(),
-            symbols: collect_symbols(source, &document),
-            semantic: Some(SemanticIndex::build(source, &document)),
-        },
+        Ok(document) => analyze_document(source, &document),
+        Err(error)
+            if matches!(
+                error.kind,
+                TomlErrorKind::KeyNotFound(_) | TomlErrorKind::CyclicPathRef(_)
+            ) =>
+        {
+            diagnostics::recover_reference_document(source).map_or_else(
+                || Analysis {
+                    diagnostics: vec![diagnostic_from_error(source, &error)],
+                    symbols: Vec::new(),
+                    semantic: None,
+                },
+                |document| analyze_document(source, &document),
+            )
+        }
         Err(error) => Analysis {
             diagnostics: vec![diagnostic_from_error(source, &error)],
             symbols: Vec::new(),
             semantic: None,
         },
+    }
+}
+
+fn analyze_document(source: &str, document: &Document) -> Analysis {
+    let semantic = SemanticIndex::build(source, document);
+    Analysis {
+        diagnostics: diagnostics::semantic_diagnostics(&semantic),
+        symbols: collect_symbols(source, document),
+        semantic: Some(semantic),
     }
 }
 
@@ -72,7 +100,13 @@ fn diagnostic_from_error(source: &str, error: &TomlError) -> Diagnostic {
     let end = next_char_boundary(source, offset);
 
     Diagnostic {
-        code: "atml.syntax.parse-error",
+        code: match error.kind {
+            TomlErrorKind::DuplicateKey => "toml.duplicate-key",
+            TomlErrorKind::IntegerOverflow => "toml.integer-overflow",
+            TomlErrorKind::InvalidEscape(_) => "toml.invalid-escape",
+            _ => "atml.syntax.parse-error",
+        },
+        severity: DiagnosticSeverity::Error,
         message: error.message.clone(),
         range: ByteRange { start: offset, end },
     }
