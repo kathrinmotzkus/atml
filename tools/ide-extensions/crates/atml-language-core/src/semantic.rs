@@ -77,6 +77,7 @@ pub struct QuantityOccurrence {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InheritanceEdge {
+    pub child: DefinitionId,
     pub child_path: Vec<String>,
     pub parent_path: Vec<String>,
     pub range: ByteRange,
@@ -186,7 +187,7 @@ impl<'a> Builder<'a> {
                         continue;
                     };
                     let selection_range = section_name_range(&section.raw, range.start);
-                    self.add_definition(
+                    let child = self.add_definition(
                         section.path.clone(),
                         if section.is_array {
                             DefinitionKind::ArrayOfTables
@@ -200,6 +201,7 @@ impl<'a> Builder<'a> {
                     let parent_ranges = inheritance_parent_ranges(&section.raw, range.start);
                     for (index, parent) in section.parents.iter().enumerate() {
                         self.index.inheritance.push(InheritanceEdge {
+                            child,
                             child_path: section.path.clone(),
                             parent_path: parent.clone(),
                             range: parent_ranges.get(index).copied().unwrap_or(range),

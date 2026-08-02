@@ -89,6 +89,46 @@ fn hover_describes_inherited_values_and_their_original_table() {
 }
 
 #[test]
+fn array_of_tables_parent_hover_does_not_mix_instances_or_sibling_parents() {
+    let source = "[class.car]\nseats = 5\n\
+                  [class.bicycle]\nseats = 1\n\
+                  [drive.electric]\ndrive = \"electric\"\n\
+                  [drive.muscle]\ndrive = \"muscle\"\n\
+                  [[fleet : class.car, drive.electric]]\nid = \"CAR-01\"\n\
+                  [[fleet : class.bicycle, drive.muscle]]\nid = \"BIKE-01\"\n";
+    let index = analyze(source).semantic.unwrap();
+    let offset = source.rfind("drive.muscle").unwrap() + "drive.".len();
+    let result = hover(source, &index, offset).unwrap();
+
+    assert!(result
+        .markdown
+        .contains("`drive` = `\"muscle\"` from `drive.muscle`"));
+    assert!(!result.markdown.contains("electric"));
+    assert!(!result.markdown.contains("seats"));
+    assert_eq!(
+        index
+            .inheritance
+            .iter()
+            .filter(|edge| edge.child_path == ["fleet"])
+            .map(|edge| edge.child)
+            .collect::<std::collections::HashSet<_>>()
+            .len(),
+        2
+    );
+
+    let source = include_str!("../../../../../examples/vehicle-rental.atml");
+    let header = "[[fleet : class.twowheeler.bicycle, drive.muscle]]";
+    let offset = source.find(header).unwrap() + header.find("drive.muscle").unwrap();
+    let index = analyze(source).semantic.unwrap();
+    let result = hover(source, &index, offset).unwrap();
+    assert!(result
+        .markdown
+        .contains("`drive` = `DriveType::Muscle` from `drive.muscle`"));
+    assert!(!result.markdown.contains("class.car"));
+    assert!(!result.markdown.contains("drive.electric"));
+}
+
+#[test]
 fn go_to_definition_uses_exact_authored_name_ranges() {
     let index = index();
     let enum_member = goto_definition(&index, inside("Mode::Active")).unwrap();

@@ -45,7 +45,7 @@ pub fn hover(source: &str, index: &SemanticIndex, offset: usize) -> Option<Hover
             code(&edge.child_path.join("."))
         );
         if parent.is_some() {
-            append_inherited_values(source, index, &edge.child_path, &mut markdown);
+            append_parent_values(source, index, edge, &mut markdown);
         }
         return Some(HoverResult {
             range: edge.range,
@@ -57,6 +57,43 @@ pub fn hover(source: &str, index: &SemanticIndex, offset: usize) -> Option<Hover
         .iter()
         .find(|definition| contains(definition.selection_range, offset))?;
     Some(definition_hover(source, index, definition))
+}
+
+fn append_parent_values(
+    source: &str,
+    index: &SemanticIndex,
+    edge: &crate::InheritanceEdge,
+    markdown: &mut String,
+) {
+    let mut inherited = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    let mut parents = Vec::new();
+    if let Some(parent) = edge.parent.and_then(|id| index.definition(id)) {
+        parents.push(parent);
+        parents.extend(index.inheritance_chain(&parent.path));
+    }
+    for parent in parents {
+        for definition in index.definitions.iter().filter(|definition| {
+            definition.kind == DefinitionKind::Key
+                && definition.path.len() > parent.path.len()
+                && definition.path.starts_with(&parent.path)
+        }) {
+            let suffix = definition.path[parent.path.len()..].to_vec();
+            if seen.insert(suffix.clone()) {
+                let value = definition_value(source, definition).unwrap_or("unknown");
+                inherited.push(format!(
+                    "{} = {} from {}",
+                    code(&suffix.join(".")),
+                    code(value),
+                    code(&parent.path.join("."))
+                ));
+            }
+        }
+    }
+    if !inherited.is_empty() {
+        markdown.push_str("\n\nInherited values:\n\n- ");
+        markdown.push_str(&inherited.join("\n- "));
+    }
 }
 
 /// Resolve the authored target under the cursor. For a transitive path
