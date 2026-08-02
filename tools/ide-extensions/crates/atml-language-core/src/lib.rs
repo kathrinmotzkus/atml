@@ -2,9 +2,11 @@
 
 mod completion;
 mod diagnostics;
+mod navigation;
 mod semantic;
 
 pub use completion::{complete, CompletionItem, CompletionKind};
+pub use navigation::{find_references, goto_definition, hover, HoverResult, NavigationTarget};
 pub use semantic::{
     CycleKind, Definition, DefinitionId, DefinitionKind, InheritanceEdge, QuantityOccurrence,
     Reference, ReferenceKind, SemanticCycle, SemanticIndex, ValueType,

@@ -229,13 +229,14 @@ Diese Arbeiten begleiten jeden Meilenstein:
 
 ## Umsetzungsstand und nächste Arbeitseinheit
 
-Meilenstein 4 ist abgeschlossen. Der editorneutrale Rust-Kern liefert
-kontextsensitive Vorschläge samt Art, Detail, Sortierschlüssel und UTF-8-
-Ersetzungsbereich. Der Language Server übersetzt diese in LSP-Completion-Items
-mit UTF-16-Bereichen. Unvollständige aktuelle Zeilen werden gegen den gültigen
-Dokumentpräfix ausgewertet, sodass beispielsweise `Strategy::` und
-`[child :` bereits während der Eingabe funktionieren.
+Meilenstein 5 ist abgeschlossen. Der editorneutrale Rust-Kern liefert Hover-
+Inhalte und exakte Quellziele für Schlüssel, Quantities, Enums, direkte und
+transitive Pfadreferenzen sowie Tabellenvererbung. Go-to-Definition folgt bei
+Pfadketten bewusst dem nächsten geschriebenen Glied; Hover zeigt zusätzlich
+das endgültig aufgelöste Ziel und seinen Wert. Find References berücksichtigt
+direkte und transitiv aufgelöste Verwendungen.
 
-Als Nächstes beginnt Meilenstein 5 mit Hover für Schlüssel, Quantities,
-Enum- und Pfadreferenzen. Darauf folgen Go-to-Definition und Find References;
-alle Ergebnisse bleiben als editorneutrale Typen im Kern definiert.
+Als Nächstes beginnt Meilenstein 6 mit toleranter Analyse unvollständiger
+Dokumente und Semantic Tokens. Danach folgen sichere Umbenennung und eindeutig
+korrigierbare Code Actions, bevor ein format-erhaltendes Formatierungskonzept
+spezifiziert wird.

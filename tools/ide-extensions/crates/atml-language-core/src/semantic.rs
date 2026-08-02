@@ -185,6 +185,7 @@ impl<'a> Builder<'a> {
                     let Some(range) = self.locate(&section.raw) else {
                         continue;
                     };
+                    let selection_range = section_name_range(&section.raw, range.start);
                     self.add_definition(
                         section.path.clone(),
                         if section.is_array {
@@ -194,7 +195,7 @@ impl<'a> Builder<'a> {
                         },
                         ValueType::Table,
                         range,
-                        range,
+                        selection_range,
                     );
                     let parent_ranges = inheritance_parent_ranges(&section.raw, range.start);
                     for (index, parent) in section.parents.iter().enumerate() {
@@ -241,7 +242,7 @@ impl<'a> Builder<'a> {
                     DefinitionKind::Table,
                     ValueType::Table,
                     key_range,
-                    key_range,
+                    key_prefix_range(&node.raw_key, key_range.start, prefix_len),
                 );
             }
         }
@@ -252,6 +253,11 @@ impl<'a> Builder<'a> {
                 value.map_or(ValueType::Unknown, value_type),
             ),
         };
+        let selection_range = if kind == DefinitionKind::Enum {
+            enum_name_range(&node.raw_key, key_range)
+        } else {
+            key_range
+        };
         self.add_definition(
             path.to_vec(),
             kind,
@@ -260,7 +266,7 @@ impl<'a> Builder<'a> {
                 start: key_range.start,
                 end: value_range.end,
             },
-            key_range,
+            selection_range,
         );
 
         if let Some(Value::EnumDefinition(definition)) = semantic_value {
@@ -611,6 +617,71 @@ fn inheritance_parent_ranges(raw: &str, source_start: usize) -> Vec<ByteRange> {
         index += 1;
     }
     ranges
+}
+
+fn section_name_range(raw: &str, source_start: usize) -> ByteRange {
+    let opening = if raw.starts_with("[[") { 2 } else { 1 };
+    let mut quoted = None;
+    let mut escaped = false;
+    let content_end = raw[opening..]
+        .char_indices()
+        .find_map(|(relative, ch)| {
+            match quoted {
+                Some('"') if escaped => escaped = false,
+                Some('"') if ch == '\\' => escaped = true,
+                Some(quote) if ch == quote => quoted = None,
+                Some(_) => {}
+                None if matches!(ch, '"' | '\'') => quoted = Some(ch),
+                None if ch == ':' => return Some(opening + relative),
+                None => {}
+            }
+            None
+        })
+        .unwrap_or_else(|| raw.trim_end_matches(']').len());
+    let content = &raw[opening..content_end];
+    let leading = content.len() - content.trim_start().len();
+    let name = content.trim();
+    ByteRange {
+        start: source_start + opening + leading,
+        end: source_start + opening + leading + name.len(),
+    }
+}
+
+fn enum_name_range(raw_key: &str, key_range: ByteRange) -> ByteRange {
+    let name = raw_key.trim_end().strip_suffix("[]").unwrap_or(raw_key);
+    ByteRange {
+        start: key_range.start,
+        end: key_range.start + name.trim_end().len(),
+    }
+}
+
+fn key_prefix_range(raw_key: &str, source_start: usize, segments: usize) -> ByteRange {
+    let mut quoted = None;
+    let mut escaped = false;
+    let mut completed = 0;
+    for (index, ch) in raw_key.char_indices() {
+        match quoted {
+            Some('"') if escaped => escaped = false,
+            Some('"') if ch == '\\' => escaped = true,
+            Some(quote) if ch == quote => quoted = None,
+            Some(_) => {}
+            None if matches!(ch, '"' | '\'') => quoted = Some(ch),
+            None if ch == '.' => {
+                completed += 1;
+                if completed == segments {
+                    return ByteRange {
+                        start: source_start,
+                        end: source_start + raw_key[..index].trim_end().len(),
+                    };
+                }
+            }
+            None => {}
+        }
+    }
+    ByteRange {
+        start: source_start,
+        end: source_start + raw_key.trim_end().len(),
+    }
 }
 
 fn detect_cycles(kind: CycleKind, edges: &[(Vec<String>, Vec<String>)]) -> Vec<SemanticCycle> {

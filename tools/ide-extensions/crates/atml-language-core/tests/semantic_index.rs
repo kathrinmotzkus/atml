@@ -29,7 +29,7 @@ fn indexes_all_atml_constructs_and_source_ranges() {
     assert_eq!(mode.value_type, ValueType::EnumDefinition);
     assert_eq!(
         &source[mode.selection_range.start..mode.selection_range.end],
-        "Mode[]"
+        "Mode"
     );
 
     let active = index

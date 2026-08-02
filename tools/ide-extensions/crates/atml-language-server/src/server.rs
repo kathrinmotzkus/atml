@@ -5,8 +5,8 @@ use std::{
 };
 
 use atml_language_core::{
-    complete, CompletionKind as CoreCompletionKind, DiagnosticSeverity as CoreDiagnosticSeverity,
-    SymbolKind,
+    complete, find_references, goto_definition, hover, CompletionKind as CoreCompletionKind,
+    DiagnosticSeverity as CoreDiagnosticSeverity, SymbolKind,
 };
 use crossbeam_channel::RecvTimeoutError;
 use lsp_server::{Connection, Message, Notification, Request, Response};
@@ -15,15 +15,19 @@ use lsp_types::{
     CompletionOptions, CompletionParams, CompletionResponse, CompletionTextEdit,
     Diagnostic as LspDiagnostic, DiagnosticSeverity, DidChangeTextDocumentParams,
     DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentSymbol, DocumentSymbolParams,
-    DocumentSymbolResponse, InitializeResult, OneOf, PublishDiagnosticsParams, ServerCapabilities,
-    ServerInfo, SymbolKind as LspSymbolKind, TextDocumentSyncCapability, TextDocumentSyncKind,
-    TextEdit,
+    DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverContents,
+    HoverParams, InitializeResult, Location, MarkupContent, MarkupKind, OneOf,
+    PublishDiagnosticsParams, ReferenceParams, ServerCapabilities, ServerInfo,
+    SymbolKind as LspSymbolKind, TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit,
 };
 
 use crate::documents::{byte_to_position, Documents, OpenDocument};
 
 const DOCUMENT_SYMBOL_METHOD: &str = "textDocument/documentSymbol";
 const COMPLETION_METHOD: &str = "textDocument/completion";
+const HOVER_METHOD: &str = "textDocument/hover";
+const DEFINITION_METHOD: &str = "textDocument/definition";
+const REFERENCES_METHOD: &str = "textDocument/references";
 const DID_OPEN_METHOD: &str = "textDocument/didOpen";
 const DID_CHANGE_METHOD: &str = "textDocument/didChange";
 const DID_CLOSE_METHOD: &str = "textDocument/didClose";
@@ -52,6 +56,9 @@ pub fn run() -> Result<(), Box<dyn Error + Send + Sync>> {
             trigger_characters: Some(vec![":".into(), ".".into(), "/".into(), "*".into()]),
             ..CompletionOptions::default()
         }),
+        hover_provider: Some(lsp_types::HoverProviderCapability::Simple(true)),
+        definition_provider: Some(OneOf::Left(true)),
+        references_provider: Some(OneOf::Left(true)),
         ..ServerCapabilities::default()
     };
     let initialize_result = InitializeResult {
@@ -97,6 +104,86 @@ fn handle_request(
     documents: &mut Documents,
     request: Request,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    if request.method == HOVER_METHOD {
+        let id = request.id.clone();
+        let params: HoverParams = serde_json::from_value(request.params)?;
+        let result = documents
+            .get_mut(&params.text_document_position_params.text_document.uri)
+            .and_then(|document| {
+                let offset = crate::documents::position_to_byte(
+                    &document.text,
+                    params.text_document_position_params.position,
+                )?;
+                let index = document.analysis().semantic.clone()?;
+                let result = hover(&document.text, &index, offset)?;
+                Some(Hover {
+                    contents: HoverContents::Markup(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value: result.markdown,
+                    }),
+                    range: Some(core_range_to_lsp(&document.text, result.range)),
+                })
+            });
+        connection.sender.send(Message::Response(Response::new_ok(
+            id,
+            serde_json::to_value(result)?,
+        )))?;
+        return Ok(());
+    }
+    if request.method == DEFINITION_METHOD {
+        let id = request.id.clone();
+        let params: GotoDefinitionParams = serde_json::from_value(request.params)?;
+        let uri = params
+            .text_document_position_params
+            .text_document
+            .uri
+            .clone();
+        let result = documents.get_mut(&uri).and_then(|document| {
+            let offset = crate::documents::position_to_byte(
+                &document.text,
+                params.text_document_position_params.position,
+            )?;
+            let index = document.analysis().semantic.clone()?;
+            let target = goto_definition(&index, offset)?;
+            Some(GotoDefinitionResponse::Scalar(Location::new(
+                uri.clone(),
+                core_range_to_lsp(&document.text, target.selection_range),
+            )))
+        });
+        connection.sender.send(Message::Response(Response::new_ok(
+            id,
+            serde_json::to_value(result)?,
+        )))?;
+        return Ok(());
+    }
+    if request.method == REFERENCES_METHOD {
+        let id = request.id.clone();
+        let params: ReferenceParams = serde_json::from_value(request.params)?;
+        let uri = params.text_document_position.text_document.uri.clone();
+        let result = documents
+            .get_mut(&uri)
+            .and_then(|document| {
+                let offset = crate::documents::position_to_byte(
+                    &document.text,
+                    params.text_document_position.position,
+                )?;
+                let index = document.analysis().semantic.clone()?;
+                Some(
+                    find_references(&index, offset, params.context.include_declaration)
+                        .into_iter()
+                        .map(|range| {
+                            Location::new(uri.clone(), core_range_to_lsp(&document.text, range))
+                        })
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .unwrap_or_default();
+        connection.sender.send(Message::Response(Response::new_ok(
+            id,
+            serde_json::to_value(result)?,
+        )))?;
+        return Ok(());
+    }
     if request.method == COMPLETION_METHOD {
         let id = request.id.clone();
         let params: CompletionParams = serde_json::from_value(request.params)?;
@@ -164,6 +251,13 @@ fn completion_items(document: &OpenDocument, offset: usize) -> Vec<LspCompletion
             ..LspCompletionItem::default()
         })
         .collect()
+}
+
+fn core_range_to_lsp(text: &str, range: atml_language_core::ByteRange) -> lsp_types::Range {
+    lsp_types::Range::new(
+        byte_to_position(text, range.start),
+        byte_to_position(text, range.end),
+    )
 }
 
 fn handle_notification(

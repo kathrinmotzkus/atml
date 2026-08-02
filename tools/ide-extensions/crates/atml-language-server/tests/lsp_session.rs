@@ -48,6 +48,15 @@ fn complete_lsp_session_updates_diagnostics_and_symbols() {
         "{initialized:#}"
     );
     assert!(initialized["result"]["capabilities"]["completionProvider"].is_object());
+    assert_eq!(initialized["result"]["capabilities"]["hoverProvider"], true);
+    assert_eq!(
+        initialized["result"]["capabilities"]["definitionProvider"],
+        true
+    );
+    assert_eq!(
+        initialized["result"]["capabilities"]["referencesProvider"],
+        true
+    );
     send(
         &mut input,
         json!({"jsonrpc":"2.0","method":"initialized","params":{}}),
@@ -206,6 +215,82 @@ fn complete_lsp_session_updates_diagnostics_and_symbols() {
         })
     );
     assert_eq!(completion["result"][0]["textEdit"]["newText"], "Active");
+
+    send(
+        &mut input,
+        json!({
+            "jsonrpc": "2.0",
+            "method": "textDocument/didChange",
+            "params": {
+                "textDocument": { "uri": uri, "version": 7 },
+                "contentChanges": [{
+                    "text": "Mode[] = [Active, Passive]\n[root]\nspeed = 5m²\n[child : root]\nmode = Mode::Active\ncopy = root.speed\n"
+                }]
+            }
+        }),
+    );
+    send(
+        &mut input,
+        json!({
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "textDocument/hover",
+            "params": {
+                "textDocument": { "uri": uri },
+                "position": { "line": 5, "character": 12 }
+            }
+        }),
+    );
+    let hover = receive_id(&messages, 4);
+    assert_eq!(hover["result"]["contents"]["kind"], "markdown");
+    assert!(hover["result"]["contents"]["value"]
+        .as_str()
+        .unwrap()
+        .contains("Resolved value: `5m²`"));
+
+    send(
+        &mut input,
+        json!({
+            "jsonrpc": "2.0",
+            "id": 5,
+            "method": "textDocument/definition",
+            "params": {
+                "textDocument": { "uri": uri },
+                "position": { "line": 5, "character": 12 }
+            }
+        }),
+    );
+    let definition = receive_id(&messages, 5);
+    assert_eq!(
+        definition["result"]["range"],
+        json!({
+            "start": { "line": 2, "character": 0 },
+            "end": { "line": 2, "character": 5 }
+        })
+    );
+
+    send(
+        &mut input,
+        json!({
+            "jsonrpc": "2.0",
+            "id": 6,
+            "method": "textDocument/references",
+            "params": {
+                "textDocument": { "uri": uri },
+                "position": { "line": 2, "character": 2 },
+                "context": { "includeDeclaration": true }
+            }
+        }),
+    );
+    let references = receive_id(&messages, 6);
+    assert_eq!(references["result"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        references["result"][1]["range"],
+        json!({
+            "start": { "line": 5, "character": 7 },
+            "end": { "line": 5, "character": 17 }
+        })
+    );
 
     send(
         &mut input,

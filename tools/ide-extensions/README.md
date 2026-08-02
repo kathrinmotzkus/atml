@@ -49,7 +49,8 @@ ide-extensions/
 │   │       ├── syntax.rs        # toml_dom adapter and source ranges
 │   │       ├── semantic.rs      # enums, references and inheritance
 │   │       ├── diagnostics.rs
-│   │       └── completion.rs
+│   │       ├── completion.rs
+│   │       └── navigation.rs    # hover, definitions and references
 │   └── atml-language-server/
 │       ├── Cargo.toml
 │       └── src/
@@ -217,6 +218,14 @@ Bare Path References, standard inheritance parents, basic TOML/ATML value
 shapes, and units already used earlier in the document. Suggestions use the
 authored prefix, replace only the relevant UTF-8/UTF-16 range, prefer local
 symbols, and remain available while the current line is still incomplete.
+
+Stage 5 adds semantic hover and navigation. Hover describes key types,
+quantity components, enum choices, direct and transitively resolved path
+targets, and inherited values with their original parent tables. Go-to-
+definition follows enum members, the next authored link in a path-reference
+chain, and inheritance parents. Find References covers enum definitions, keys,
+tables, direct uses, and transitively resolved uses. All targets use exact name
+ranges; the LSP layer only converts UTF-8 byte offsets to UTF-16 positions.
 
 | Diagnostic code | Meaning |
 |---|---|
