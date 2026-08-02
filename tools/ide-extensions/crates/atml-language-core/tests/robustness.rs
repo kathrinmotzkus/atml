@@ -62,6 +62,19 @@ fn arbitrary_utf8_input_never_panics() {
     }
 }
 
+#[test]
+fn key_like_text_before_unicode_never_corrupts_source_ranges() {
+    // Minimized from the first crash found by the GitHub fuzz smoke test.
+    let source = concat!(
+        "naddname = \"Kdddddäfer 🦀\"\n",
+        "#nadna\u{1}.dmeme  = \"Käfer 🦀\"\n",
+        "d = \"Kdddddäfer) 🦀\"\n",
+        "#nadna\u{1}.dmeme  ",
+    );
+
+    assert!(catch_unwind(AssertUnwindSafe(|| analyze(source))).is_ok());
+}
+
 fn next(state: &mut u64) -> u64 {
     *state = state
         .wrapping_mul(6_364_136_223_846_793_005)

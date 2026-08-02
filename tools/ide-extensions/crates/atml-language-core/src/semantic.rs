@@ -213,7 +213,7 @@ impl<'a> Builder<'a> {
     }
 
     fn collect_entry(&mut self, node: &toml_dom::EntryNode, path: &[String]) {
-        let Some(key_range) = self.locate(&node.raw_key) else {
+        let Some(key_range) = self.locate_line_key(&node.raw_key) else {
             return;
         };
         let value_start = key_range.end + node.pre_eq.len() + 1 + node.post_eq.len();
@@ -414,6 +414,26 @@ impl<'a> Builder<'a> {
         let end = start + needle.len();
         self.cursor = end;
         Some(ByteRange { start, end })
+    }
+
+    fn locate_line_key(&mut self, needle: &str) -> Option<ByteRange> {
+        let mut search_start = self.cursor;
+        while let Some(relative) = self.source.get(search_start..)?.find(needle) {
+            let start = search_start + relative;
+            let line_start = self.source[..start]
+                .rfind('\n')
+                .map_or(0, |index| index + 1);
+            if self.source[line_start..start]
+                .bytes()
+                .all(|byte| matches!(byte, b' ' | b'\t'))
+            {
+                let end = start + needle.len();
+                self.cursor = end;
+                return Some(ByteRange { start, end });
+            }
+            search_start = start + self.source[start..].chars().next()?.len_utf8();
+        }
+        None
     }
 
     fn finish(mut self) -> SemanticIndex {
