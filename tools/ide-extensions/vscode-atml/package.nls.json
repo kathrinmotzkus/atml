@@ -1,5 +1,5 @@
 {
-  "extension.displayName": "ATML Language Support",
+  "extension.displayName": "ATML Tools",
   "extension.description": "Syntax highlighting and language intelligence for Advanced TOML (ATML)",
   "command.restartServer": "ATML: Restart Language Server",
   "configuration.title": "ATML",

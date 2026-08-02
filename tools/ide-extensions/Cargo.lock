@@ -4,14 +4,14 @@ version = 4
 
 [[package]]
 name = "atml-language-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "toml_dom",
 ]
 
 [[package]]
 name = "atml-language-server"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "atml-language-core",
  "crossbeam-channel",

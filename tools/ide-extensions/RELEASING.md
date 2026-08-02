@@ -43,7 +43,7 @@ cargo build --locked --release -p atml-language-server
 cd vscode-atml
 npm ci
 ./scripts/package.sh linux-x64 ../target/release/atml-language-server
-code --install-extension dist/atml-0.1.0-linux-x64.vsix --force
+code --install-extension dist/atml-0.1.1-linux-x64.vsix --force
 ```
 
 Compare the `.sha256` file after transfer and open a fresh Extension
@@ -62,7 +62,7 @@ or shell history.
 After verifying all six checksums and smoke tests, publish each targeted package:
 
 ```sh
-npx --no-install vsce publish --packagePath dist/atml-0.1.0-linux-x64.vsix
+npx --no-install vsce publish --packagePath dist/atml-0.1.1-linux-x64.vsix
 ```
 
 Repeat for all targets. Confirm the Marketplace target list and install the

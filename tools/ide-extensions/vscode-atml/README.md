@@ -1,4 +1,4 @@
-# ATML Language Support for Visual Studio Code
+# ATML Tools for Visual Studio Code
 
 Language support for [ATML (Advanced TOML)](https://github.com/kathrinmotzkus/atml),
 an additive extension of TOML 1.1 with quantities, Bare Path References, enums,
@@ -19,7 +19,7 @@ server. There is no second TOML parser and no Tree-sitter dependency.
 
 ## Installation
 
-Install **ATML Language Support** from the Visual Studio Marketplace or install
+Install **ATML Tools** from the Visual Studio Marketplace or install
 the VSIX matching your platform:
 
 | VSIX target | Operating system | Architecture |

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Renamed the extension to **ATML Tools** for a distinctive Marketplace identity.
+
 ## 0.1.0
 
 - Initial Visual Studio Code release.

@@ -1,5 +1,5 @@
 {
-  "extension.displayName": "ATML-Sprachunterstützung",
+  "extension.displayName": "ATML Tools",
   "extension.description": "Syntaxhervorhebung und Sprachfunktionen für Advanced TOML (ATML)",
   "command.restartServer": "ATML: Language Server neu starten",
   "configuration.title": "ATML",
