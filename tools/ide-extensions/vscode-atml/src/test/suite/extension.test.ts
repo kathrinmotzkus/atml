@@ -62,8 +62,7 @@ suite('ATML extension', () => {
 
       const hovers = await waitForCommand<vscode.Hover[]>(
         'vscode.executeHoverProvider',
-        uri,
-        new vscode.Position(5, 12),
+        [uri, new vscode.Position(5, 12)],
         (items) => items.length > 0,
       );
       assert.ok(
@@ -75,8 +74,7 @@ suite('ATML extension', () => {
 
       const definitions = await waitForCommand<(vscode.Location | vscode.LocationLink)[]>(
         'vscode.executeDefinitionProvider',
-        uri,
-        new vscode.Position(5, 12),
+        [uri, new vscode.Position(5, 12)],
         (items) => items.length > 0,
       );
       const definition = definitions[0];
@@ -85,13 +83,48 @@ suite('ATML extension', () => {
 
       const references = await waitForCommand<vscode.Location[]>(
         'vscode.executeReferenceProvider',
-        uri,
-        new vscode.Position(2, 2),
+        [uri, new vscode.Position(2, 2)],
         (items) => items.length > 0,
       );
       assert.ok(
         references.some((location) => location.range.isEqual(new vscode.Range(5, 7, 5, 17))),
       );
+
+      const semanticTokens = await waitForCommand<vscode.SemanticTokens>(
+        'vscode.provideDocumentSemanticTokens',
+        [uri],
+        (tokens) => tokens.data.length > 0,
+      );
+      assert.ok(semanticTokens.data.length > 0);
+
+      const renameEdit = await waitForCommand<vscode.WorkspaceEdit>(
+        'vscode.executeDocumentRenameProvider',
+        [uri, new vscode.Position(2, 2), 'velocity'],
+        (edit) => edit.entries().length > 0,
+      );
+      const renameRanges = renameEdit.entries().flatMap(([, edits]) =>
+        edits.map((edit) => edit.range),
+      );
+      assert.ok(renameRanges.some((range) => range.isEqual(new vscode.Range(2, 0, 2, 5))));
+      assert.ok(renameRanges.some((range) => range.isEqual(new vscode.Range(5, 12, 5, 17))));
+
+      const invalidEdit = new vscode.WorkspaceEdit();
+      invalidEdit.replace(
+        uri,
+        new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length)),
+        'Mode[] = [Active]\nvalue = Mode::active\n',
+      );
+      assert.equal(await vscode.workspace.applyEdit(invalidEdit), true);
+      await waitForDiagnostics(uri, (items) =>
+        items.some((diagnostic) => diagnostic.code === 'atml.enum.unknown-member'),
+      );
+      const actions = await waitForCommand<(vscode.CodeAction | vscode.Command)[]>(
+        'vscode.executeCodeActionProvider',
+        [uri, new vscode.Range(1, 8, 1, 20), vscode.CodeActionKind.QuickFix.value],
+        (items) => items.some((item) => item.title === "Change to 'Active'"),
+      );
+      const fix = actions.find((item) => item.title === "Change to 'Active'");
+      assert.ok(fix && 'edit' in fix && fix.edit);
     } finally {
       await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
       await vscode.workspace.fs.delete(uri, { useTrash: false });
@@ -135,17 +168,16 @@ async function waitForCompletions(
 
 async function waitForCommand<T>(
   command: string,
-  uri: vscode.Uri,
-  position: vscode.Position,
+  args: unknown[],
   predicate: (result: T) => boolean,
 ): Promise<T> {
   const deadline = Date.now() + 20_000;
   while (Date.now() < deadline) {
-    const result = await vscode.commands.executeCommand<T>(command, uri, position);
+    const result = await vscode.commands.executeCommand<T>(command, ...args);
     if (result && predicate(result)) {
       return result;
     }
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
-  throw new Error(`timed out waiting for ${command} for ${uri.toString()}`);
+  throw new Error(`timed out waiting for ${command}`);
 }

@@ -229,14 +229,15 @@ Diese Arbeiten begleiten jeden Meilenstein:
 
 ## Umsetzungsstand und nächste Arbeitseinheit
 
-Meilenstein 5 ist abgeschlossen. Der editorneutrale Rust-Kern liefert Hover-
-Inhalte und exakte Quellziele für Schlüssel, Quantities, Enums, direkte und
-transitive Pfadreferenzen sowie Tabellenvererbung. Go-to-Definition folgt bei
-Pfadketten bewusst dem nächsten geschriebenen Glied; Hover zeigt zusätzlich
-das endgültig aufgelöste Ziel und seinen Wert. Find References berücksichtigt
-direkte und transitiv aufgelöste Verwendungen.
+Meilenstein 6 ist abgeschlossen. Bei einer unvollständigen aktuellen Zeile
+bleibt der letzte gültige Dokumentpräfix für Sprachfunktionen verfügbar.
+Semantic Tokens ergänzen die lexikalische TextMate-Grammatik. Prepare Rename
+und Rename bearbeiten bare Schlüssel, Enums und Tabellen einschließlich ihrer
+eindeutig zugehörigen Verwendungen und lehnen Konflikte oder formatkritische
+Fälle ab. Quick Fixes korrigieren nur eindeutige Abweichungen der
+Groß-/Kleinschreibung. `FORMATTING.md` definiert die DST/CST-Invarianten, Tests
+und erste Regelmenge für eine spätere format-erhaltende Implementierung; eine
+Formatting-Capability wird vorher nicht beworben.
 
-Als Nächstes beginnt Meilenstein 6 mit toleranter Analyse unvollständiger
-Dokumente und Semantic Tokens. Danach folgen sichere Umbenennung und eindeutig
-korrigierbare Code Actions, bevor ein format-erhaltendes Formatierungskonzept
-spezifiziert wird.
+Als Nächstes beginnt Meilenstein 7 mit den Veröffentlichungsdaten, nativen
+Server-Binaries, reproduzierbaren VSIX-Artefakten und der CI-Matrix.

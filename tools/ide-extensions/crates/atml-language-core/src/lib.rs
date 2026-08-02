@@ -2,10 +2,15 @@
 
 mod completion;
 mod diagnostics;
+mod editing;
 mod navigation;
 mod semantic;
 
 pub use completion::{complete, CompletionItem, CompletionKind};
+pub use editing::{
+    prepare_rename, quick_fixes, rename, semantic_tokens, QuickFix, RenameError, RenameTarget,
+    SemanticToken, SemanticTokenKind, TextChange,
+};
 pub use navigation::{find_references, goto_definition, hover, HoverResult, NavigationTarget};
 pub use semantic::{
     CycleKind, Definition, DefinitionId, DefinitionKind, InheritanceEdge, QuantityOccurrence,
@@ -70,19 +75,39 @@ pub fn analyze(source: &str) -> Analysis {
             ) =>
         {
             diagnostics::recover_reference_document(source).map_or_else(
-                || Analysis {
-                    diagnostics: vec![diagnostic_from_error(source, &error)],
-                    symbols: Vec::new(),
-                    semantic: None,
-                },
+                || recover_valid_prefix(source, &error),
                 |document| analyze_document(source, &document),
             )
         }
-        Err(error) => Analysis {
-            diagnostics: vec![diagnostic_from_error(source, &error)],
-            symbols: Vec::new(),
-            semantic: None,
-        },
+        Err(error) => recover_valid_prefix(source, &error),
+    }
+}
+
+fn recover_valid_prefix(source: &str, error: &TomlError) -> Analysis {
+    let syntax_diagnostic = diagnostic_from_error(source, error);
+    let mut boundary = source[..syntax_diagnostic.range.start.min(source.len())]
+        .rfind('\n')
+        .map_or(0, |index| index + 1);
+    loop {
+        let prefix = &source[..boundary];
+        if let Ok(document) = Document::parse_atml(prefix) {
+            let mut analysis = analyze_document(prefix, &document);
+            analysis.diagnostics.push(syntax_diagnostic);
+            analysis
+                .diagnostics
+                .sort_by_key(|diagnostic| (diagnostic.range.start, diagnostic.code));
+            return analysis;
+        }
+        if boundary == 0 {
+            return Analysis {
+                diagnostics: vec![syntax_diagnostic],
+                symbols: Vec::new(),
+                semantic: Some(SemanticIndex::default()),
+            };
+        }
+        boundary = source[..boundary.saturating_sub(1)]
+            .rfind('\n')
+            .map_or(0, |index| index + 1);
     }
 }
 

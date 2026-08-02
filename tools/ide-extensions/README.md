@@ -39,6 +39,7 @@ the language server starts.
 ```text
 ide-extensions/
 ├── README.md
+├── FORMATTING.md                # format-preserving formatter contract
 ├── Cargo.toml                   # Rust workspace
 ├── crates/
 │   ├── atml-language-core/
@@ -50,7 +51,8 @@ ide-extensions/
 │   │       ├── semantic.rs      # enums, references and inheritance
 │   │       ├── diagnostics.rs
 │   │       ├── completion.rs
-│   │       └── navigation.rs    # hover, definitions and references
+│   │       ├── navigation.rs    # hover, definitions and references
+│   │       └── editing.rs       # semantic tokens, rename and quick fixes
 │   └── atml-language-server/
 │       ├── Cargo.toml
 │       └── src/
@@ -186,9 +188,9 @@ changing the protocol boundary.
 - Parsing baseline: `toml_dom = "0.4"`; no external TOML parser and no
   Tree-sitter dependency.
 - Syntax highlighting: TextMate grammar first, semantic tokens later.
-- Error recovery: begin with full-document parsing and one precise parser error;
-  add tolerant region recovery in the core when completion in temporarily
-  invalid documents is implemented.
+- Error recovery: parse the complete snapshot first; recover independent Bare
+  Path Reference errors with position-stable placeholders and retain the last
+  valid line prefix while a later region is syntactically incomplete.
 - Release model: publish the VS Code extension with platform-specific Rust
   server binaries so end users do not need a Rust toolchain.
 
@@ -226,6 +228,16 @@ definition follows enum members, the next authored link in a path-reference
 chain, and inheritance parents. Find References covers enum definitions, keys,
 tables, direct uses, and transitively resolved uses. All targets use exact name
 ranges; the LSP layer only converts UTF-8 byte offsets to UTF-16 positions.
+
+Stage 6 makes editing robust. A valid document prefix remains semantically
+available while the current line is incomplete. Semantic Tokens distinguish
+ATML symbols beyond TextMate's lexical context. Prepare Rename and Rename update
+bare key, enum, and table definitions plus every directly affected authored
+use, rejecting invalid names, conflicts, and unsafe quoted rewrites. Quick Fixes
+are limited to unique case corrections for existing enums, members, paths, and
+inheritance parents. The separate [formatting contract](FORMATTING.md) defines
+the required DST/CST invariants; formatting is not advertised until those
+invariants have an implementation and fixture coverage.
 
 | Diagnostic code | Meaning |
 |---|---|

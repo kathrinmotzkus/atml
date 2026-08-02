@@ -57,6 +57,15 @@ fn complete_lsp_session_updates_diagnostics_and_symbols() {
         initialized["result"]["capabilities"]["referencesProvider"],
         true
     );
+    assert!(initialized["result"]["capabilities"]["semanticTokensProvider"].is_object());
+    assert_eq!(
+        initialized["result"]["capabilities"]["renameProvider"]["prepareProvider"],
+        true
+    );
+    assert_eq!(
+        initialized["result"]["capabilities"]["codeActionProvider"],
+        true
+    );
     send(
         &mut input,
         json!({"jsonrpc":"2.0","method":"initialized","params":{}}),
@@ -289,6 +298,99 @@ fn complete_lsp_session_updates_diagnostics_and_symbols() {
         json!({
             "start": { "line": 5, "character": 7 },
             "end": { "line": 5, "character": 17 }
+        })
+    );
+
+    send(
+        &mut input,
+        json!({
+            "jsonrpc": "2.0", "id": 7,
+            "method": "textDocument/semanticTokens/full",
+            "params": { "textDocument": { "uri": uri } }
+        }),
+    );
+    let tokens = receive_id(&messages, 7);
+    assert!(!tokens["result"]["data"].as_array().unwrap().is_empty());
+
+    send(
+        &mut input,
+        json!({
+            "jsonrpc": "2.0", "id": 8,
+            "method": "textDocument/prepareRename",
+            "params": {
+                "textDocument": { "uri": uri },
+                "position": { "line": 2, "character": 2 }
+            }
+        }),
+    );
+    let prepared = receive_id(&messages, 8);
+    assert_eq!(prepared["result"]["placeholder"], "speed");
+    assert_eq!(
+        prepared["result"]["range"],
+        json!({
+            "start": { "line": 2, "character": 0 },
+            "end": { "line": 2, "character": 5 }
+        })
+    );
+
+    send(
+        &mut input,
+        json!({
+            "jsonrpc": "2.0", "id": 9,
+            "method": "textDocument/rename",
+            "params": {
+                "textDocument": { "uri": uri },
+                "position": { "line": 2, "character": 2 },
+                "newName": "velocity"
+            }
+        }),
+    );
+    let renamed = receive_id(&messages, 9);
+    let edits = renamed["result"]["changes"][uri].as_array().unwrap();
+    assert_eq!(edits.len(), 2);
+    assert!(edits.iter().all(|edit| edit["newText"] == "velocity"));
+
+    send(
+        &mut input,
+        json!({
+            "jsonrpc": "2.0",
+            "method": "textDocument/didChange",
+            "params": {
+                "textDocument": { "uri": uri, "version": 8 },
+                "contentChanges": [{ "text": "Mode[] = [Active]\nvalue = Mode::active\n" }]
+            }
+        }),
+    );
+    let case_diagnostics = receive_method(&messages, "textDocument/publishDiagnostics");
+    assert_eq!(case_diagnostics["params"]["version"], 8);
+    assert_eq!(
+        case_diagnostics["params"]["diagnostics"][0]["code"],
+        "atml.enum.unknown-member"
+    );
+    send(
+        &mut input,
+        json!({
+            "jsonrpc": "2.0", "id": 10,
+            "method": "textDocument/codeAction",
+            "params": {
+                "textDocument": { "uri": uri },
+                "range": {
+                    "start": { "line": 1, "character": 8 },
+                    "end": { "line": 1, "character": 20 }
+                },
+                "context": { "diagnostics": case_diagnostics["params"]["diagnostics"] }
+            }
+        }),
+    );
+    let actions = receive_id(&messages, 10);
+    assert_eq!(actions["result"][0]["title"], "Change to 'Active'");
+    let action_edit = &actions["result"][0]["edit"]["changes"][uri][0];
+    assert_eq!(action_edit["newText"], "Active");
+    assert_eq!(
+        action_edit["range"],
+        json!({
+            "start": { "line": 1, "character": 14 },
+            "end": { "line": 1, "character": 20 }
         })
     );
 

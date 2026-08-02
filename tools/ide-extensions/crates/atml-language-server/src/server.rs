@@ -5,20 +5,26 @@ use std::{
 };
 
 use atml_language_core::{
-    complete, find_references, goto_definition, hover, CompletionKind as CoreCompletionKind,
-    DiagnosticSeverity as CoreDiagnosticSeverity, SymbolKind,
+    complete, find_references, goto_definition, hover, prepare_rename, quick_fixes, rename,
+    semantic_tokens, CompletionKind as CoreCompletionKind,
+    DiagnosticSeverity as CoreDiagnosticSeverity, RenameError, SemanticTokenKind, SymbolKind,
 };
 use crossbeam_channel::RecvTimeoutError;
 use lsp_server::{Connection, Message, Notification, Request, Response};
 use lsp_types::{
-    CompletionItem as LspCompletionItem, CompletionItemKind as LspCompletionItemKind,
-    CompletionOptions, CompletionParams, CompletionResponse, CompletionTextEdit,
-    Diagnostic as LspDiagnostic, DiagnosticSeverity, DidChangeTextDocumentParams,
-    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentSymbol, DocumentSymbolParams,
-    DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverContents,
-    HoverParams, InitializeResult, Location, MarkupContent, MarkupKind, OneOf,
-    PublishDiagnosticsParams, ReferenceParams, ServerCapabilities, ServerInfo,
-    SymbolKind as LspSymbolKind, TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit,
+    CodeAction, CodeActionKind, CodeActionOrCommand, CodeActionParams,
+    CodeActionProviderCapability, CompletionItem as LspCompletionItem,
+    CompletionItemKind as LspCompletionItemKind, CompletionOptions, CompletionParams,
+    CompletionResponse, CompletionTextEdit, Diagnostic as LspDiagnostic, DiagnosticSeverity,
+    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+    DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams,
+    GotoDefinitionResponse, Hover, HoverContents, HoverParams, InitializeResult, Location,
+    MarkupContent, MarkupKind, OneOf, PrepareRenameResponse, PublishDiagnosticsParams,
+    ReferenceParams, RenameOptions, RenameParams, SemanticToken as LspSemanticToken,
+    SemanticTokenType, SemanticTokens, SemanticTokensFullOptions, SemanticTokensLegend,
+    SemanticTokensOptions, SemanticTokensParams, SemanticTokensServerCapabilities,
+    ServerCapabilities, ServerInfo, SymbolKind as LspSymbolKind, TextDocumentPositionParams,
+    TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, WorkspaceEdit,
 };
 
 use crate::documents::{byte_to_position, Documents, OpenDocument};
@@ -28,6 +34,10 @@ const COMPLETION_METHOD: &str = "textDocument/completion";
 const HOVER_METHOD: &str = "textDocument/hover";
 const DEFINITION_METHOD: &str = "textDocument/definition";
 const REFERENCES_METHOD: &str = "textDocument/references";
+const SEMANTIC_TOKENS_METHOD: &str = "textDocument/semanticTokens/full";
+const PREPARE_RENAME_METHOD: &str = "textDocument/prepareRename";
+const RENAME_METHOD: &str = "textDocument/rename";
+const CODE_ACTION_METHOD: &str = "textDocument/codeAction";
 const DID_OPEN_METHOD: &str = "textDocument/didOpen";
 const DID_CHANGE_METHOD: &str = "textDocument/didChange";
 const DID_CLOSE_METHOD: &str = "textDocument/didClose";
@@ -59,6 +69,18 @@ pub fn run() -> Result<(), Box<dyn Error + Send + Sync>> {
         hover_provider: Some(lsp_types::HoverProviderCapability::Simple(true)),
         definition_provider: Some(OneOf::Left(true)),
         references_provider: Some(OneOf::Left(true)),
+        semantic_tokens_provider: Some(SemanticTokensServerCapabilities::SemanticTokensOptions(
+            SemanticTokensOptions {
+                legend: semantic_tokens_legend(),
+                full: Some(SemanticTokensFullOptions::Bool(true)),
+                ..SemanticTokensOptions::default()
+            },
+        )),
+        rename_provider: Some(OneOf::Right(RenameOptions {
+            prepare_provider: Some(true),
+            work_done_progress_options: lsp_types::WorkDoneProgressOptions::default(),
+        })),
+        code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
         ..ServerCapabilities::default()
     };
     let initialize_result = InitializeResult {
@@ -104,6 +126,126 @@ fn handle_request(
     documents: &mut Documents,
     request: Request,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    if request.method == SEMANTIC_TOKENS_METHOD {
+        let id = request.id.clone();
+        let params: SemanticTokensParams = serde_json::from_value(request.params)?;
+        let result = documents
+            .get_mut(&params.text_document.uri)
+            .and_then(|document| {
+                let index = document.analysis().semantic.clone()?;
+                Some(SemanticTokens {
+                    result_id: Some(document.version.to_string()),
+                    data: lsp_semantic_tokens(&document.text, &index),
+                })
+            });
+        connection.sender.send(Message::Response(Response::new_ok(
+            id,
+            serde_json::to_value(result)?,
+        )))?;
+        return Ok(());
+    }
+    if request.method == PREPARE_RENAME_METHOD {
+        let id = request.id.clone();
+        let params: TextDocumentPositionParams = serde_json::from_value(request.params)?;
+        let result = documents
+            .get_mut(&params.text_document.uri)
+            .and_then(|document| {
+                let offset = crate::documents::position_to_byte(&document.text, params.position)?;
+                let index = document.analysis().semantic.clone()?;
+                let target = prepare_rename(&document.text, &index, offset)?;
+                Some(PrepareRenameResponse::RangeWithPlaceholder {
+                    range: core_range_to_lsp(&document.text, target.range),
+                    placeholder: target.placeholder,
+                })
+            });
+        connection.sender.send(Message::Response(Response::new_ok(
+            id,
+            serde_json::to_value(result)?,
+        )))?;
+        return Ok(());
+    }
+    if request.method == RENAME_METHOD {
+        let id = request.id.clone();
+        let params: RenameParams = serde_json::from_value(request.params)?;
+        let uri = params.text_document_position.text_document.uri.clone();
+        let result = documents.get_mut(&uri).and_then(|document| {
+            let offset = crate::documents::position_to_byte(
+                &document.text,
+                params.text_document_position.position,
+            )?;
+            let index = document.analysis().semantic.clone()?;
+            Some((
+                document.text.clone(),
+                rename(&document.text, &index, offset, &params.new_name),
+            ))
+        });
+        let response = match result {
+            Some((text, Ok(changes))) => Response::new_ok(
+                id,
+                serde_json::to_value(workspace_edit(
+                    uri,
+                    changes
+                        .into_iter()
+                        .map(|change| (change.range, change.new_text)),
+                    &text,
+                ))?,
+            ),
+            Some((_, Err(error))) => Response::new_err(
+                id,
+                lsp_server::ErrorCode::InvalidParams as i32,
+                rename_error_message(error).into(),
+            ),
+            None => Response::new_err(
+                id,
+                lsp_server::ErrorCode::InvalidParams as i32,
+                "document or symbol is not available".into(),
+            ),
+        };
+        connection.sender.send(Message::Response(response))?;
+        return Ok(());
+    }
+    if request.method == CODE_ACTION_METHOD {
+        let id = request.id.clone();
+        let params: CodeActionParams = serde_json::from_value(request.params)?;
+        let uri = params.text_document.uri.clone();
+        let result = documents
+            .get_mut(&uri)
+            .and_then(|document| {
+                let start = crate::documents::position_to_byte(&document.text, params.range.start)?;
+                let end = crate::documents::position_to_byte(&document.text, params.range.end)?;
+                let analysis = document.analysis().clone();
+                let index = analysis.semantic.as_ref()?;
+                Some(
+                    quick_fixes(
+                        &document.text,
+                        index,
+                        &analysis.diagnostics,
+                        atml_language_core::ByteRange { start, end },
+                    )
+                    .into_iter()
+                    .map(|fix| {
+                        CodeActionOrCommand::CodeAction(CodeAction {
+                            title: fix.title,
+                            kind: Some(CodeActionKind::QUICKFIX),
+                            edit: Some(workspace_edit(
+                                uri.clone(),
+                                std::iter::once((fix.change.range, fix.change.new_text)),
+                                &document.text,
+                            )),
+                            is_preferred: Some(true),
+                            ..CodeAction::default()
+                        })
+                    })
+                    .collect::<Vec<_>>(),
+                )
+            })
+            .unwrap_or_default();
+        connection.sender.send(Message::Response(Response::new_ok(
+            id,
+            serde_json::to_value(result)?,
+        )))?;
+        return Ok(());
+    }
     if request.method == HOVER_METHOD {
         let id = request.id.clone();
         let params: HoverParams = serde_json::from_value(request.params)?;
@@ -258,6 +400,90 @@ fn core_range_to_lsp(text: &str, range: atml_language_core::ByteRange) -> lsp_ty
         byte_to_position(text, range.start),
         byte_to_position(text, range.end),
     )
+}
+
+fn semantic_tokens_legend() -> SemanticTokensLegend {
+    SemanticTokensLegend {
+        token_types: vec![
+            SemanticTokenType::PROPERTY,
+            SemanticTokenType::CLASS,
+            SemanticTokenType::ENUM,
+            SemanticTokenType::ENUM_MEMBER,
+            SemanticTokenType::VARIABLE,
+            SemanticTokenType::NUMBER,
+            SemanticTokenType::new("atmlUnit"),
+        ],
+        token_modifiers: Vec::new(),
+    }
+}
+
+fn lsp_semantic_tokens(
+    text: &str,
+    index: &atml_language_core::SemanticIndex,
+) -> Vec<LspSemanticToken> {
+    let mut previous_line = 0;
+    let mut previous_start = 0;
+    semantic_tokens(text, index)
+        .into_iter()
+        .filter_map(|token| {
+            let start = byte_to_position(text, token.range.start);
+            let end = byte_to_position(text, token.range.end);
+            (start.line == end.line).then_some((token, start, end))
+        })
+        .map(|(token, start, end)| {
+            let delta_line = start.line - previous_line;
+            let delta_start = if delta_line == 0 {
+                start.character - previous_start
+            } else {
+                start.character
+            };
+            previous_line = start.line;
+            previous_start = start.character;
+            LspSemanticToken {
+                delta_line,
+                delta_start,
+                length: end.character - start.character,
+                token_type: match token.kind {
+                    SemanticTokenKind::Property => 0,
+                    SemanticTokenKind::Table => 1,
+                    SemanticTokenKind::Enum => 2,
+                    SemanticTokenKind::EnumMember => 3,
+                    SemanticTokenKind::Reference => 4,
+                    SemanticTokenKind::Number => 5,
+                    SemanticTokenKind::Unit => 6,
+                },
+                token_modifiers_bitset: 0,
+            }
+        })
+        .collect()
+}
+
+fn workspace_edit(
+    uri: lsp_types::Uri,
+    changes: impl IntoIterator<Item = (atml_language_core::ByteRange, String)>,
+    text: &str,
+) -> WorkspaceEdit {
+    WorkspaceEdit {
+        changes: Some(HashMap::from([(
+            uri,
+            changes
+                .into_iter()
+                .map(|(range, new_text)| TextEdit {
+                    range: core_range_to_lsp(text, range),
+                    new_text,
+                })
+                .collect(),
+        )])),
+        ..WorkspaceEdit::default()
+    }
+}
+
+fn rename_error_message(error: RenameError) -> &'static str {
+    match error {
+        RenameError::NotRenameable => "the selected symbol cannot be renamed safely",
+        RenameError::InvalidName => "the new name is not a valid bare ATML name",
+        RenameError::Conflict => "the new name conflicts with an existing definition",
+    }
 }
 
 fn handle_notification(
