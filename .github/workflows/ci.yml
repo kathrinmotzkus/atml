@@ -11,8 +11,8 @@ jobs:
   grammar:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Install dependencies
@@ -34,7 +34,7 @@ jobs:
       run:
         working-directory: tools/ide-extensions
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@1.94.1
         with:
           components: clippy,rustfmt
@@ -51,7 +51,7 @@ jobs:
       run:
         working-directory: tools/ide-extensions
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@1.94.1
       - uses: dtolnay/rust-toolchain@nightly
         with:
@@ -73,8 +73,8 @@ jobs:
       run:
         working-directory: tools/ide-extensions/vscode-atml
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
@@ -101,33 +101,39 @@ jobs:
             rust_target: x86_64-unknown-linux-gnu
             vsce_target: linux-x64
             server: atml-language-server
+            glibc: "2.28"
           - os: ubuntu-24.04-arm
             rust_target: aarch64-unknown-linux-gnu
             vsce_target: linux-arm64
             server: atml-language-server
+            glibc: "2.28"
           - os: windows-2022
             rust_target: x86_64-pc-windows-msvc
             vsce_target: win32-x64
             server: atml-language-server.exe
+            glibc: ""
           - os: windows-11-arm
             rust_target: aarch64-pc-windows-msvc
             vsce_target: win32-arm64
             server: atml-language-server.exe
+            glibc: ""
           - os: macos-15-intel
             rust_target: x86_64-apple-darwin
             vsce_target: darwin-x64
             server: atml-language-server
+            glibc: ""
           - os: macos-15
             rust_target: aarch64-apple-darwin
             vsce_target: darwin-arm64
             server: atml-language-server
+            glibc: ""
     runs-on: ${{ matrix.os }}
     defaults:
       run:
         working-directory: tools/ide-extensions/vscode-atml
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
@@ -135,16 +141,36 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.94.1
         with:
           targets: ${{ matrix.rust_target }}
+      - name: Set up Python for the pinned Zig toolchain
+        if: matrix.glibc != ''
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install pinned glibc-compatible linker
+        if: matrix.glibc != ''
+        shell: bash
+        run: |
+          python -m pip install ziglang==0.14.1
+          cargo install cargo-zigbuild --version 0.23.0 --locked
       - name: Install locked Node dependencies
         run: npm ci
       - name: Build locked native language server
+        if: matrix.glibc == ''
         working-directory: tools/ide-extensions
         run: cargo build --locked --release --target ${{ matrix.rust_target }} -p atml-language-server
+      - name: Build glibc-compatible native language server
+        if: matrix.glibc != ''
+        working-directory: tools/ide-extensions
+        run: cargo zigbuild --locked --release --target ${{ matrix.rust_target }}.${{ matrix.glibc }} -p atml-language-server
+      - name: Verify minimum glibc version
+        if: matrix.glibc != ''
+        shell: bash
+        run: ./scripts/verify-glibc.sh ../target/${{ matrix.rust_target }}/release/${{ matrix.server }} ${{ matrix.glibc }}
       - name: Package target-specific VSIX and checksum
         shell: bash
         run: ./scripts/package.sh ${{ matrix.vsce_target }} ../target/${{ matrix.rust_target }}/release/${{ matrix.server }}
       - name: Upload release artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: atml-0.1.0-${{ matrix.vsce_target }}
           path: |
