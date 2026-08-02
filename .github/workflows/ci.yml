@@ -52,11 +52,12 @@ jobs:
         working-directory: tools/ide-extensions
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.94.1
       - uses: dtolnay/rust-toolchain@nightly
         with:
           toolchain: nightly-2026-05-25
       - name: Install pinned cargo-fuzz
-        run: cargo +nightly-2026-05-25 install cargo-fuzz --version 0.13.1 --locked
+        run: cargo +1.94.1 install cargo-fuzz --version 0.13.1 --locked
       - name: Fuzz analysis smoke test
         env:
           ASAN_OPTIONS: detect_leaks=0
