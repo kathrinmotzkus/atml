@@ -37,5 +37,5 @@ npx --no-install vsce package --no-dependencies --target "$vsce_target" --out "$
 source_date_epoch=${SOURCE_DATE_EPOCH:-$(git log -1 --format=%ct)}
 node "$script_dir/normalize-vsix.cjs" "$artifact" "$source_date_epoch"
 "$script_dir/verify-vsix.sh" "$artifact" "$server_name"
-sha256sum "$artifact" > "$artifact.sha256"
+(cd dist && sha256sum "$(basename "$artifact")") > "$artifact.sha256"
 echo "$artifact"
