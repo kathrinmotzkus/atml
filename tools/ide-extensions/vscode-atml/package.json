@@ -1,7 +1,7 @@
 {
   "name": "atml",
-  "displayName": "ATML Language Support",
-  "description": "Syntax highlighting and language intelligence for Advanced TOML (ATML)",
+  "displayName": "%extension.displayName%",
+  "description": "%extension.description%",
   "version": "0.1.0",
   "publisher": "kathrinmotzkus",
   "icon": "images/icon.png",
@@ -69,17 +69,17 @@
     "commands": [
       {
         "command": "atml.restartServer",
-        "title": "ATML: Restart Language Server"
+        "title": "%command.restartServer%"
       }
     ],
     "configuration": {
-      "title": "ATML",
+      "title": "%configuration.title%",
       "properties": {
         "atml.server.path": {
           "type": "string",
           "default": "",
           "scope": "machine",
-          "description": "Path to a custom atml-language-server executable. Leave empty to use the bundled server or the Cargo development server."
+          "description": "%configuration.serverPath%"
         },
         "atml.trace.server": {
           "type": "string",
@@ -90,7 +90,7 @@
           ],
           "default": "off",
           "scope": "window",
-          "description": "Trace communication between VS Code and the ATML language server."
+          "description": "%configuration.traceServer%"
         }
       }
     }

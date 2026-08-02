@@ -8,6 +8,23 @@ const extensionRoot = path.resolve(__dirname, '..', '..');
 let grammarPromise: ReturnType<typeof createGrammar> | undefined;
 
 suite('ATML TextMate grammar', () => {
+  test('keeps English and German manifest localization complete', () => {
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(extensionRoot, 'package.json'), 'utf8'),
+    ) as unknown;
+    const english = loadMessages('package.nls.json');
+    const german = loadMessages('package.nls.de.json');
+    const placeholders = new Set<string>();
+
+    collectPlaceholders(manifest, placeholders);
+    assert.deepStrictEqual(new Set(Object.keys(english)), placeholders);
+    assert.deepStrictEqual(new Set(Object.keys(german)), placeholders);
+    for (const key of placeholders) {
+      assert.ok(english[key].trim(), `empty English localization for ${key}`);
+      assert.ok(german[key].trim(), `empty German localization for ${key}`);
+    }
+  });
+
   test('highlights all ATML Stage 1 constructs', async () => {
     const grammar = await loadGrammar();
 
@@ -58,6 +75,27 @@ suite('ATML TextMate grammar', () => {
     }
   });
 });
+
+function loadMessages(file: string): Record<string, string> {
+  return JSON.parse(fs.readFileSync(path.join(extensionRoot, file), 'utf8')) as Record<string, string>;
+}
+
+function collectPlaceholders(value: unknown, result: Set<string>): void {
+  if (typeof value === 'string') {
+    const match = /^%([^%]+)%$/.exec(value);
+    if (match) {
+      result.add(match[1]);
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((entry) => collectPlaceholders(entry, result));
+    return;
+  }
+  if (value && typeof value === 'object') {
+    Object.values(value).forEach((entry) => collectPlaceholders(entry, result));
+  }
+}
 
 function loadGrammar(): ReturnType<typeof createGrammar> {
   grammarPromise ??= createGrammar();

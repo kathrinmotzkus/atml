@@ -129,6 +129,8 @@ Bereiche desselben Dokuments analysiert werden.
 
 ## Meilenstein 4: Completion
 
+**Status: abgeschlossen.**
+
 ### Reihenfolge
 
 1. Enum-Mitglieder nach `Enum::`
@@ -157,6 +159,8 @@ Bereiche desselben Dokuments analysiert werden.
 
 ## Meilenstein 5: Hover und Navigation
 
+**Status: abgeschlossen.**
+
 ### Aufgaben
 
 1. Hover für Schlüssel mit Werttyp und Definition.
@@ -175,6 +179,8 @@ Bereiche desselben Dokuments analysiert werden.
 
 ## Meilenstein 6: Robustes Bearbeiten
 
+**Status: abgeschlossen.**
+
 ### Aufgaben
 
 1. Tolerante Analyse für während der Eingabe unvollständige Dokumente.
@@ -189,6 +195,8 @@ Schreibweisen und unveränderte Bereiche müssen gemäß dem DST/CST-Modell von
 `toml_dom` erhalten bleiben.
 
 ## Meilenstein 7: Veröffentlichung der VS-Code-Erweiterung
+
+**Status: technisch vorbereitet; externe Veröffentlichung ausstehend.**
 
 ### Aufgaben
 
@@ -212,6 +220,12 @@ Schreibweisen und unveränderte Bereiche müssen gemäß dem DST/CST-Modell von
   Completion, Hover und Navigation.
 
 ## Querschnittsaufgaben
+
+**Status: umgesetzt und durch CI-Prüfungen abgesichert.** Der Rust-Kern wird
+zusätzlich mit einem deterministischen Korpus beliebiger Unicode-Skalarwerte
+und einem synthetischen ATML-Dokument mit 10.000 Zeilen geprüft. Die
+VS-Code-Manifesttexte liegen in synchronisierten englischen und deutschen
+Lokalisierungsdateien.
 
 Diese Arbeiten begleiten jeden Meilenstein:
 

@@ -1,0 +1,8 @@
+{
+  "extension.displayName": "ATML Language Support",
+  "extension.description": "Syntax highlighting and language intelligence for Advanced TOML (ATML)",
+  "command.restartServer": "ATML: Restart Language Server",
+  "configuration.title": "ATML",
+  "configuration.serverPath": "Path to a custom atml-language-server executable. Leave empty to use the bundled server or the Cargo development server.",
+  "configuration.traceServer": "Trace communication between VS Code and the ATML language server."
+}

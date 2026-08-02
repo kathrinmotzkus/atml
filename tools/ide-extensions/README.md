@@ -186,6 +186,12 @@ changing the protocol boundary.
   end-to-end smoke test; language semantics remain in Rust tests.
 - Each feature must include tests for Unicode because LSP columns are UTF-16
   code units while Rust and `toml_dom` operate on UTF-8 byte offsets.
+- A deterministic generated UTF-8 corpus guards the complete analysis entry
+  point against panics, including Unicode scalar and boundary cases.
+- A 10,000-line generated document records the large-file analysis time and
+  enforces a generous CI safety ceiling.
+- English and German VS Code manifest catalogs must contain exactly the same
+  localization keys; the TextMate test suite checks that invariant.
 
 ## Initial decisions
 
