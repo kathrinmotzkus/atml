@@ -40,6 +40,7 @@ the language server starts.
 ide-extensions/
 ├── README.md
 ├── FORMATTING.md                # format-preserving formatter contract
+├── FUZZING.md                   # coverage-guided robustness testing
 ├── RELEASING.md                 # six-target VSIX release procedure
 ├── rust-toolchain.toml          # pinned release toolchain
 ├── Cargo.toml                   # Rust workspace
@@ -188,6 +189,8 @@ changing the protocol boundary.
   code units while Rust and `toml_dom` operate on UTF-8 byte offsets.
 - A deterministic generated UTF-8 corpus guards the complete analysis entry
   point against panics, including Unicode scalar and boundary cases.
+- Coverage-guided fuzz targets exercise analysis and all editor-facing core
+  features; short CI runs complement longer local campaigns.
 - A 10,000-line generated document records the large-file analysis time and
   enforces a generous CI safety ceiling.
 - English and German VS Code manifest catalogs must contain exactly the same

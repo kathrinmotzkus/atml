@@ -1,0 +1,29 @@
+[package]
+name = "atml-ide-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+atml-language-core = { path = "../crates/atml-language-core" }
+libfuzzer-sys = "0.4"
+
+[[bin]]
+name = "analyze"
+path = "fuzz_targets/analyze.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "language_features"
+path = "fuzz_targets/language_features.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]
+members = ["."]

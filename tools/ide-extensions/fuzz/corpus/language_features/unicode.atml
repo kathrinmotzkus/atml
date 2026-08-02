@@ -1,0 +1,3 @@
+Größe[] = ["klein", "groß"]
+auswahl = Größe::groß
+emoji = "😀"

@@ -225,7 +225,9 @@ Schreibweisen und unveränderte Bereiche müssen gemäß dem DST/CST-Modell von
 zusätzlich mit einem deterministischen Korpus beliebiger Unicode-Skalarwerte
 und einem synthetischen ATML-Dokument mit 10.000 Zeilen geprüft. Die
 VS-Code-Manifesttexte liegen in synchronisierten englischen und deutschen
-Lokalisierungsdateien.
+Lokalisierungsdateien. Zwei coverage-gesteuerte Fuzz-Targets prüfen Analyse
+und editorseitige Sprachfunktionen in kurzen CI-Läufen und längeren lokalen
+Kampagnen.
 
 Diese Arbeiten begleiten jeden Meilenstein:
 

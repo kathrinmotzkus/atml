@@ -45,6 +45,27 @@ jobs:
       - name: Run Clippy
         run: cargo clippy --locked --all-targets -- -D warnings
 
+  ide-fuzz:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/ide-extensions
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: nightly-2026-05-25
+      - name: Install pinned cargo-fuzz
+        run: cargo +nightly-2026-05-25 install cargo-fuzz --version 0.13.1 --locked
+      - name: Fuzz analysis smoke test
+        env:
+          ASAN_OPTIONS: detect_leaks=0
+        run: cargo +nightly-2026-05-25 fuzz run analyze -- -max_total_time=10 -max_len=65536
+      - name: Fuzz language features smoke test
+        env:
+          ASAN_OPTIONS: detect_leaks=0
+        run: cargo +nightly-2026-05-25 fuzz run language_features -- -max_total_time=10 -max_len=16384
+
   ide-vscode:
     runs-on: ubuntu-latest
     defaults:

@@ -8,6 +8,15 @@ out-test/
 dist/
 coverage/
 .vscode-test/
+fuzz/artifacts/
+fuzz/coverage/
+fuzz/target/
+fuzz/corpus/analyze/*
+!fuzz/corpus/analyze/basic.atml
+!fuzz/corpus/analyze/unicode.atml
+fuzz/corpus/language_features/*
+!fuzz/corpus/language_features/editing.atml
+!fuzz/corpus/language_features/unicode.atml
 
 # VS Code extension packages and bundled binaries
 *.vsix

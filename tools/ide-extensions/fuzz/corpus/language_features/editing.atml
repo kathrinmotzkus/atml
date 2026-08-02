@@ -1,0 +1,8 @@
+Mode[] = ["Fast", "Safe"]
+selected = Mode::Fast
+
+[base]
+enabled = true
+
+[child : base]
+copy = base.enabled

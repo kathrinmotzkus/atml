@@ -1,0 +1,10 @@
+title = "ATML"
+distance = 12.5 km
+Mode[] = ["Fast", "Safe"]
+selected = Mode::Fast
+
+[base]
+enabled = true
+
+[child : base]
+copy = base.enabled
