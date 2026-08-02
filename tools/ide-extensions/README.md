@@ -211,6 +211,13 @@ references, enum binding and ordering errors, missing or invalid inheritance
 parents, and inheritance cycles are reported with stable codes and exact source
 ranges. Syntax, TOML semantics, and ATML semantics remain separate categories.
 
+Stage 4 adds context-sensitive completion implemented entirely in the Rust
+core and exposed through LSP. It completes visible enum members and enum names,
+Bare Path References, standard inheritance parents, basic TOML/ATML value
+shapes, and units already used earlier in the document. Suggestions use the
+authored prefix, replace only the relevant UTF-8/UTF-16 range, prefer local
+symbols, and remain available while the current line is still incomplete.
+
 | Diagnostic code | Meaning |
 |---|---|
 | `atml.syntax.parse-error` | malformed TOML or ATML syntax |

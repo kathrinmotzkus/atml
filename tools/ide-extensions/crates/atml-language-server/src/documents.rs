@@ -87,7 +87,7 @@ fn range_to_bytes(text: &str, range: Range) -> Option<(usize, usize)> {
     (start <= end).then_some((start, end))
 }
 
-fn position_to_byte(text: &str, position: Position) -> Option<usize> {
+pub fn position_to_byte(text: &str, position: Position) -> Option<usize> {
     let line_start = if position.line == 0 {
         0
     } else {

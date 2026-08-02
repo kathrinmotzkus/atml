@@ -227,15 +227,15 @@ Diese Arbeiten begleiten jeden Meilenstein:
 - Benutzertexte auf Englisch implementieren und eine spätere deutsche
   Lokalisierung vorbereiten.
 
-## Unmittelbar nächste Arbeitseinheit
+## Umsetzungsstand und nächste Arbeitseinheit
 
-Als Nächstes beginnt Meilenstein 4 in dieser Reihenfolge:
+Meilenstein 4 ist abgeschlossen. Der editorneutrale Rust-Kern liefert
+kontextsensitive Vorschläge samt Art, Detail, Sortierschlüssel und UTF-8-
+Ersetzungsbereich. Der Language Server übersetzt diese in LSP-Completion-Items
+mit UTF-16-Bereichen. Unvollständige aktuelle Zeilen werden gegen den gültigen
+Dokumentpräfix ausgewertet, sodass beispielsweise `Strategy::` und
+`[child :` bereits während der Eingabe funktionieren.
 
-1. Completion-Kontexte und editorneutrale Completion-Typen festlegen
-2. Enum-Mitglieder nach `Enum::` anbieten
-3. Bare Path References und Elternpfade vervollständigen
-4. sichtbare Enum-Namen und ATML-Wertformen anbieten
-5. tolerante Completion in vorübergehend unvollständigen Dokumenten testen
-
-Der semantische Index und die neue Diagnoseebene liefern dafür Sichtbarkeit,
-Zieltypen und robuste Teilergebnisse, ohne LSP-Typen in den Kern zu ziehen.
+Als Nächstes beginnt Meilenstein 5 mit Hover für Schlüssel, Quantities,
+Enum- und Pfadreferenzen. Darauf folgen Go-to-Definition und Find References;
+alle Ergebnisse bleiben als editorneutrale Typen im Kern definiert.

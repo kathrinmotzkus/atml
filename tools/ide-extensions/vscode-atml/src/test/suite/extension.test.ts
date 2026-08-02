@@ -33,6 +33,21 @@ suite('ATML extension', () => {
       assert.equal(await vscode.workspace.applyEdit(edit), true);
       await document.save();
       await waitForDiagnostics(uri, (items) => items.length === 0);
+
+      const completionSource = 'Strategy[] = [Active, Passive]\nchoice = Strategy::A\n';
+      const completionEdit = new vscode.WorkspaceEdit();
+      completionEdit.replace(
+        uri,
+        new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length)),
+        completionSource,
+      );
+      assert.equal(await vscode.workspace.applyEdit(completionEdit), true);
+      const completions = await waitForCompletions(uri, new vscode.Position(1, 20));
+      const active = completions.items.find((item) => item.label === 'Active');
+      assert.ok(active, 'enum member completion is provided by the language server');
+      assert.ok(active.textEdit instanceof vscode.TextEdit);
+      assert.equal(active.textEdit.newText, 'Active');
+      assert.deepEqual(active.textEdit.range, new vscode.Range(1, 19, 1, 20));
     } finally {
       await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
       await vscode.workspace.fs.delete(uri, { useTrash: false });
@@ -53,4 +68,23 @@ async function waitForDiagnostics(
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   throw new Error(`timed out waiting for diagnostics for ${uri.toString()}`);
+}
+
+async function waitForCompletions(
+  uri: vscode.Uri,
+  position: vscode.Position,
+): Promise<vscode.CompletionList> {
+  const deadline = Date.now() + 20_000;
+  while (Date.now() < deadline) {
+    const completions = await vscode.commands.executeCommand<vscode.CompletionList>(
+      'vscode.executeCompletionItemProvider',
+      uri,
+      position,
+    );
+    if (completions?.items.some((item) => item.label === 'Active')) {
+      return completions;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error(`timed out waiting for completions for ${uri.toString()}`);
 }

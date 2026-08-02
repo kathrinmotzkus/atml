@@ -47,6 +47,7 @@ fn complete_lsp_session_updates_diagnostics_and_symbols() {
         initialized["result"]["capabilities"]["textDocumentSync"], 2,
         "{initialized:#}"
     );
+    assert!(initialized["result"]["capabilities"]["completionProvider"].is_object());
     send(
         &mut input,
         json!({"jsonrpc":"2.0","method":"initialized","params":{}}),
@@ -168,6 +169,43 @@ fn complete_lsp_session_updates_diagnostics_and_symbols() {
         semantic["params"]["diagnostics"].as_array().unwrap().len(),
         3
     );
+
+    send(
+        &mut input,
+        json!({
+            "jsonrpc": "2.0",
+            "method": "textDocument/didChange",
+            "params": {
+                "textDocument": { "uri": uri, "version": 6 },
+                "contentChanges": [{
+                    "text": "Strategy[] = [Active, Passive]\nchoice = Strategy::A\n"
+                }]
+            }
+        }),
+    );
+    send(
+        &mut input,
+        json!({
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "textDocument/completion",
+            "params": {
+                "textDocument": { "uri": uri },
+                "position": { "line": 1, "character": 20 }
+            }
+        }),
+    );
+    let completion = receive_id(&messages, 3);
+    assert_eq!(completion["result"][0]["label"], "Active");
+    assert_eq!(completion["result"][0]["kind"], 20);
+    assert_eq!(
+        completion["result"][0]["textEdit"]["range"],
+        json!({
+            "start": { "line": 1, "character": 19 },
+            "end": { "line": 1, "character": 20 }
+        })
+    );
+    assert_eq!(completion["result"][0]["textEdit"]["newText"], "Active");
 
     send(
         &mut input,

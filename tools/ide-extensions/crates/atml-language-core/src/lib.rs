@@ -1,8 +1,10 @@
 //! Editor-independent analysis for ATML documents.
 
+mod completion;
 mod diagnostics;
 mod semantic;
 
+pub use completion::{complete, CompletionItem, CompletionKind};
 pub use semantic::{
     CycleKind, Definition, DefinitionId, DefinitionKind, InheritanceEdge, QuantityOccurrence,
     Reference, ReferenceKind, SemanticCycle, SemanticIndex, ValueType,

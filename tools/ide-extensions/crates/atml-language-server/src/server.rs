@@ -4,19 +4,26 @@ use std::{
     time::{Duration, Instant},
 };
 
-use atml_language_core::{DiagnosticSeverity as CoreDiagnosticSeverity, SymbolKind};
+use atml_language_core::{
+    complete, CompletionKind as CoreCompletionKind, DiagnosticSeverity as CoreDiagnosticSeverity,
+    SymbolKind,
+};
 use crossbeam_channel::RecvTimeoutError;
 use lsp_server::{Connection, Message, Notification, Request, Response};
 use lsp_types::{
+    CompletionItem as LspCompletionItem, CompletionItemKind as LspCompletionItemKind,
+    CompletionOptions, CompletionParams, CompletionResponse, CompletionTextEdit,
     Diagnostic as LspDiagnostic, DiagnosticSeverity, DidChangeTextDocumentParams,
     DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentSymbol, DocumentSymbolParams,
     DocumentSymbolResponse, InitializeResult, OneOf, PublishDiagnosticsParams, ServerCapabilities,
     ServerInfo, SymbolKind as LspSymbolKind, TextDocumentSyncCapability, TextDocumentSyncKind,
+    TextEdit,
 };
 
 use crate::documents::{byte_to_position, Documents, OpenDocument};
 
 const DOCUMENT_SYMBOL_METHOD: &str = "textDocument/documentSymbol";
+const COMPLETION_METHOD: &str = "textDocument/completion";
 const DID_OPEN_METHOD: &str = "textDocument/didOpen";
 const DID_CHANGE_METHOD: &str = "textDocument/didChange";
 const DID_CLOSE_METHOD: &str = "textDocument/didClose";
@@ -41,6 +48,10 @@ pub fn run() -> Result<(), Box<dyn Error + Send + Sync>> {
             TextDocumentSyncKind::INCREMENTAL,
         )),
         document_symbol_provider: Some(OneOf::Left(true)),
+        completion_provider: Some(CompletionOptions {
+            trigger_characters: Some(vec![":".into(), ".".into(), "/".into(), "*".into()]),
+            ..CompletionOptions::default()
+        }),
         ..ServerCapabilities::default()
     };
     let initialize_result = InitializeResult {
@@ -86,6 +97,25 @@ fn handle_request(
     documents: &mut Documents,
     request: Request,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    if request.method == COMPLETION_METHOD {
+        let id = request.id.clone();
+        let params: CompletionParams = serde_json::from_value(request.params)?;
+        let result = documents
+            .get_mut(&params.text_document_position.text_document.uri)
+            .and_then(|document| {
+                let offset = crate::documents::position_to_byte(
+                    &document.text,
+                    params.text_document_position.position,
+                )?;
+                Some(completion_items(document, offset))
+            })
+            .unwrap_or_default();
+        connection.sender.send(Message::Response(Response::new_ok(
+            id,
+            serde_json::to_value(CompletionResponse::Array(result))?,
+        )))?;
+        return Ok(());
+    }
     if request.method != DOCUMENT_SYMBOL_METHOD {
         connection.sender.send(Message::Response(Response::new_err(
             request.id,
@@ -107,6 +137,33 @@ fn handle_request(
     );
     connection.sender.send(Message::Response(response))?;
     Ok(())
+}
+
+fn completion_items(document: &OpenDocument, offset: usize) -> Vec<LspCompletionItem> {
+    complete(&document.text, offset)
+        .into_iter()
+        .map(|item| LspCompletionItem {
+            label: item.label,
+            kind: Some(match item.kind {
+                CoreCompletionKind::Enum => LspCompletionItemKind::ENUM,
+                CoreCompletionKind::EnumMember => LspCompletionItemKind::ENUM_MEMBER,
+                CoreCompletionKind::Key => LspCompletionItemKind::REFERENCE,
+                CoreCompletionKind::Table => LspCompletionItemKind::STRUCT,
+                CoreCompletionKind::Unit => LspCompletionItemKind::UNIT,
+                CoreCompletionKind::Value => LspCompletionItemKind::VALUE,
+            }),
+            detail: Some(item.detail),
+            sort_text: Some(item.sort_text),
+            text_edit: Some(CompletionTextEdit::Edit(TextEdit {
+                range: lsp_types::Range::new(
+                    byte_to_position(&document.text, item.replace.start),
+                    byte_to_position(&document.text, item.replace.end),
+                ),
+                new_text: item.insert_text,
+            })),
+            ..LspCompletionItem::default()
+        })
+        .collect()
 }
 
 fn handle_notification(
