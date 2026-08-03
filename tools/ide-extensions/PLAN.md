@@ -314,6 +314,91 @@ Geschwistertabellen-Fehler behandelt werden: Die fachliche Korrektur verhindert
 nicht von selbst, dass eine fehlerhafte Auflösung weiterhin Werte aus
 `class.truck.medium` oder `class.truck.heavy` bei `class.truck.light` anzeigt.
 
+### Spezifikationsentwurf: Tabellenvererbung mit Enum-Klassifikation
+
+Das fachliche Fahrzeugmodell soll den künstlichen Pfadbestandteil `class`
+entfernen und die zulässigen Ausprägungen unmittelbar unter `vehicle`
+deklarieren:
+
+```atml
+[vehicle]
+truck[]      = [light, medium, heavy]
+car[]        = [small, compact, estate, van]
+twowheeler[] = [motorized, ebike, bicycle]
+```
+
+Zur Verbindung einer konkreten Eigenschaftstabelle mit einem solchen
+Enum-Mitglied wird folgende neue Form untersucht:
+
+```atml
+[<child> : <table>.<enum>::<member>]
+```
+
+Beispiel:
+
+```atml
+[truck.light : vehicle.truck::light]
+seats  = 2
+wheels = 4
+```
+
+Die beabsichtigte Semantik ist:
+
+1. `<table>` bezeichnet eine vorhandene Standardtabelle, deren gemeinsame
+   Eigenschaften `<child>` erbt.
+2. `<table>.<enum>` bezeichnet eine innerhalb dieser Tabelle deklarierte
+   Enum-Definition.
+3. `<member>` muss ein gültiges Mitglied dieses Enums sein.
+4. `<child>` wird zugleich mit der geprüften Auswahl
+   `<enum> = <table>.<enum>::<member>` klassifiziert.
+5. Die Enum-Definition und ihre übrigen Mitglieder werden nicht als normale
+   Eigenschaften in die Kindtabelle kopiert.
+
+Für das Beispiel entspricht das sinngemäß einer Tabelle, die gemeinsame
+`vehicle`-Eigenschaften erbt, als `truck = vehicle.truck::light`
+klassifiziert ist und `seats` sowie `wheels` selbst definiert. Bei einem
+mehrteiligen Tabellenpfad wird am letzten Punkt vor `::` getrennt:
+
+```atml
+[regional.truck.light : catalog.vehicle.truck::light]
+```
+
+```text
+child  = regional.truck.light
+table  = catalog.vehicle
+enum   = truck
+member = light
+```
+
+Der Entwurf grenzt drei Konstrukte bewusst voneinander ab:
+
+```atml
+# Eine Tabelle erbt alle dafür vorgesehenen Eigenschaften einer Elterntabelle.
+[<child> : <table>]
+
+# Ein Schlüssel übernimmt genau einen Wert über eine Bare Path Reference.
+<child-key> = <table>.<value>
+
+# Eine Tabelle erbt Tabelleneigenschaften und wählt geprüft ein Enum-Mitglied.
+[<child> : <table>.<enum>::<member>]
+```
+
+Beispiele für die einfache Wertübernahme bleiben unverändert:
+
+```atml
+[vehicle]
+currency = "EUR"
+
+[truck.light]
+currency = vehicle.currency
+```
+
+Nicht Bestandteil dieses Entwurfs ist die Zuweisung einer vollständigen
+Tabelle an einen einzelnen Schlüssel. Ein Schlüssel erhält weiterhin genau
+einen Wert; Tabellen werden ausschließlich über Tabellenköpfe vererbt. Die
+neue Enum-Form bleibt bis zur gemeinsamen Prüfung aller gesammelten Fälle ein
+offener Spezifikationsentwurf und ist noch keine beschlossene ATML-Regel.
+
 ### Beobachtung: Normale Servermeldungen erscheinen als Fehler
 
 Der installierte Language Server schreibt derzeit auch reguläre
@@ -364,27 +449,31 @@ Für `class.truck.light` wird als erwartetes Ergebnis zur Diskussion gestellt:
    oder Array-of-Tables-Header deklarierte Nachfahren von der Vererbung
    ausgeschlossen werden. Dabei Dotted Keys, Inline Tables, implizite Tabellen
    und explizite Untertabellen getrennt betrachten.
-3. Aus der Entscheidung gemeinsame Konformitätstests für ATML,
+3. Den Entwurf `[<child> : <table>.<enum>::<member>]` vollständig gegen
+   einfache und mehrteilige Tabellenpfade, mehrere Eltern, ungültige
+   Enum-Mitglieder, Namenskonflikte und transitive Vererbung prüfen und danach
+   über seine Aufnahme in `SPEC.md` und `atml.abnf` entscheiden.
+4. Aus den Entscheidungen gemeinsame Konformitätstests für ATML,
    `vehicle-rental.atml`, `toml_dom` und den Language Server ableiten.
-4. Prüfen, welche effektiven Tabellen `toml_dom` derzeit für die betroffenen
+5. Prüfen, welche effektiven Tabellen `toml_dom` derzeit für die betroffenen
    Standardtabellen und `fleet`-Elemente erzeugt. Eine reine Hover-Korrektur ist
    nur zulässig, wenn das zugrunde liegende Dokumentmodell bereits korrekt ist.
-5. Falls erforderlich, `toml_dom` um die Herkunft beziehungsweise
+6. Falls erforderlich, `toml_dom` um die Herkunft beziehungsweise
    Deklarationseigentümerschaft von Tabellenwerten ergänzen, die Auflösung
    korrigieren, eine Patch-Version veröffentlichen und erst danach die
    IDE-Abhängigkeit aktualisieren.
-6. Im semantischen IDE-Index jeden Schlüssel der konkreten Tabellen- oder
+7. Im semantischen IDE-Index jeden Schlüssel der konkreten Tabellen- oder
    Array-Element-Deklaration zuordnen. Präfixvergleiche allein dürfen nicht
    bestimmen, welche Werte zu einem Elternteil gehören.
-7. Hover, Completion, Navigation, Diagnosen, Semantic Tokens und Rename auf
+8. Hover, Completion, Navigation, Diagnosen, Semantic Tokens und Rename auf
    dieselbe Eigentums- und Vererbungslogik prüfen, damit keine Funktion ein
    abweichendes Tabellenmodell verwendet.
-8. Die Serverprotokollierung auf LSP-konforme Schweregrade und eine steuerbare
+9. Die Serverprotokollierung auf LSP-konforme Schweregrade und eine steuerbare
    Ausführlichkeit umstellen; `stderr` nur für echte Fehler verwenden.
-9. Regressionstests mindestens für `class.truck.light`,
+10. Regressionstests mindestens für `class.truck.light`,
    `class.truck.medium`, `class.truck.heavy`, mehrere `[[fleet]]`-Elemente und
    verschachtelte Tabellen sowie normale und fehlerhafte Serverläufe ergänzen.
-10. Erst nach vollständigen Kern-, LSP-, VS-Code-, Grammar- und Fuzz-Tests eine
+11. Erst nach vollständigen Kern-, LSP-, VS-Code-, Grammar- und Fuzz-Tests eine
    neue Patch-Version der Erweiterung vorbereiten.
 
 ### Nicht empfohlene Abkürzungen
