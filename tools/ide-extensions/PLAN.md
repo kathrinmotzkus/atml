@@ -314,6 +314,37 @@ Geschwistertabellen-Fehler behandelt werden: Die fachliche Korrektur verhindert
 nicht von selbst, dass eine fehlerhafte Auflösung weiterhin Werte aus
 `class.truck.medium` oder `class.truck.heavy` bei `class.truck.light` anzeigt.
 
+### Beobachtung: Normale Servermeldungen erscheinen als Fehler
+
+Der installierte Language Server schreibt derzeit auch reguläre
+Lebenszyklusmeldungen mit `eprintln!` auf den Prozesskanal `stderr`, darunter:
+
+```text
+ATML language server 0.1.2 starting
+opened ... at version 1
+analyzing ... at version 1
+```
+
+Der VS-Code-Language-Client kennzeichnet Ausgaben auf `stderr` unabhängig von
+ihrem Inhalt als `[error]`. Die gezeigten Meldungen belegen daher keine
+fehlgeschlagene Analyse, werden aber irreführend als Fehler dargestellt. Das
+ist ein Integrations- und Loggingfehler des Language Servers.
+
+Bei der späteren Korrektur gelten folgende Anforderungen:
+
+- `stderr` bleibt tatsächlichen Start-, Protokoll- und Prozessfehlern
+  vorbehalten.
+- Normale Statusinformationen werden nach der LSP-Initialisierung über
+  `window/logMessage` mit dem passenden LSP-Meldungstyp übertragen oder bei
+  fehlendem diagnostischem Nutzen ganz weggelassen.
+- Häufige Meldungen wie `analyzing ...` dürfen das Ausgabefenster im
+  Normalbetrieb nicht unnötig füllen; eine ausführliche Ausgabe muss an eine
+  bewusst aktivierte Protokollierungsstufe gekoppelt sein.
+- Integrationstests prüfen sowohl den LSP-Meldungstyp als auch, dass ein
+  erfolgreicher Serverlauf keine regulären Statuszeilen auf `stderr` schreibt.
+- Echte fatale Fehler müssen weiterhin sichtbar bleiben und einen
+  fehlgeschlagenen Prozessstatus erzeugen.
+
 Für `class.truck.light` wird als erwartetes Ergebnis zur Diskussion gestellt:
 
 - unmittelbar aus `class.truck.light`: `wheels`, `seats`, `licence_class`,
@@ -348,10 +379,12 @@ Für `class.truck.light` wird als erwartetes Ergebnis zur Diskussion gestellt:
 7. Hover, Completion, Navigation, Diagnosen, Semantic Tokens und Rename auf
    dieselbe Eigentums- und Vererbungslogik prüfen, damit keine Funktion ein
    abweichendes Tabellenmodell verwendet.
-8. Regressionstests mindestens für `class.truck.light`,
+8. Die Serverprotokollierung auf LSP-konforme Schweregrade und eine steuerbare
+   Ausführlichkeit umstellen; `stderr` nur für echte Fehler verwenden.
+9. Regressionstests mindestens für `class.truck.light`,
    `class.truck.medium`, `class.truck.heavy`, mehrere `[[fleet]]`-Elemente und
-   verschachtelte Tabellen ergänzen.
-9. Erst nach vollständigen Kern-, LSP-, VS-Code-, Grammar- und Fuzz-Tests eine
+   verschachtelte Tabellen sowie normale und fehlerhafte Serverläufe ergänzen.
+10. Erst nach vollständigen Kern-, LSP-, VS-Code-, Grammar- und Fuzz-Tests eine
    neue Patch-Version der Erweiterung vorbereiten.
 
 ### Nicht empfohlene Abkürzungen
