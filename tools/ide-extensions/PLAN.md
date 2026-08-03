@@ -259,3 +259,80 @@ Release-Schritt. Sie setzt die Bestätigung des Marketplace-Publishers
 `kathrinmotzkus`, ein kurzlebiges `VSCE_PAT` außerhalb des Repositories, die
 sechs durch CI erzeugten Artefakte sowie die bewusste Freigabe zum Publizieren
 voraus. Der genaue Ablauf steht in `RELEASING.md`.
+
+## Update-Plan nach Version 0.1.2
+
+**Status: Analyse begonnen; Entscheidungen und Umsetzung ausstehend.** Weitere
+Beobachtungen werden zunächst gesammelt, bevor Spezifikation, `toml_dom` oder
+Language Server geändert werden. Die folgenden Punkte beschreiben daher noch
+keine beschlossene ATML-Semantik.
+
+### Beobachtung: Nachfahrentabellen erscheinen als geerbte Werte
+
+Beim Hover über einen Vererbungspfad wie `class.truck.light` erscheinen auch
+Werte aus den Geschwistertabellen `class.truck.medium` und
+`class.truck.heavy`. Das Problem betrifft mindestens drei getrennt zu
+untersuchende Ebenen:
+
+1. **ATML-Spezifikation:** `atml.abnf` erlaubt geerbte Tabellen mit Dotted
+   Keys, kann aber als kontextfreie Grammatik nicht festlegen, ob explizit
+   deklarierte Nachfahrentabellen zu den vererbbaren Werten eines Elternteils
+   gehören. `SPEC.md` spricht von vollständig aufgelösten `key/values`, grenzt
+   benannte Nachfahrentabellen bislang jedoch nicht eindeutig ab.
+2. **Dokumentmodell:** `vehicle-rental.atml` ist syntaktisch gültig. Die nicht
+   ausdrücklich deklarierte Tabelle `class` entsteht nach den TOML-Regeln
+   implizit; eine zusätzliche `[class]`-Deklaration würde das Problem nicht
+   lösen. Die hierarchische Anordnung der Vorlagen macht aber eine bislang
+   unklare Vererbungsfrage sichtbar.
+3. **Implementierungen:** Die Hover-Auswertung sammelt Schlüssel derzeit über
+   ein reines Pfadpräfix und ordnet dadurch Nachfahrentabellen dem Elternteil
+   zu. `toml_dom` führt eine flache Tabellenzusammenführung durch, bei der
+   Tabellenwerte ebenfalls übernommen werden können. Deshalb darf die
+   Korrektur nicht ungeprüft auf die sichtbare Hover-Ausgabe begrenzt werden.
+
+Für `class.truck.light` wird als erwartetes Ergebnis zur Diskussion gestellt:
+
+- unmittelbar aus `class.truck.light`: `licence_class`, `cargo_volume`,
+  `deposit`, `base_rate`
+- transitiv aus `class.truck`: `wheels`, `seats`
+- transitiv aus `vehicle`: `currency`, `min_rental_period`, `status`
+- nicht enthalten: Werte oder Tabellen aus `class.truck.medium` und
+  `class.truck.heavy`
+
+### Vorgeschlagene Entscheidungs- und Arbeitsschritte
+
+1. Alle weiteren beobachteten Fälle sammeln und in kleine, erwartungsbasierte
+   Beispiele zerlegen.
+2. Entscheiden und in `SPEC.md` normativ festhalten, ob durch eigene Tabellen-
+   oder Array-of-Tables-Header deklarierte Nachfahren von der Vererbung
+   ausgeschlossen werden. Dabei Dotted Keys, Inline Tables, implizite Tabellen
+   und explizite Untertabellen getrennt betrachten.
+3. Aus der Entscheidung gemeinsame Konformitätstests für ATML,
+   `vehicle-rental.atml`, `toml_dom` und den Language Server ableiten.
+4. Prüfen, welche effektiven Tabellen `toml_dom` derzeit für die betroffenen
+   Standardtabellen und `fleet`-Elemente erzeugt. Eine reine Hover-Korrektur ist
+   nur zulässig, wenn das zugrunde liegende Dokumentmodell bereits korrekt ist.
+5. Falls erforderlich, `toml_dom` um die Herkunft beziehungsweise
+   Deklarationseigentümerschaft von Tabellenwerten ergänzen, die Auflösung
+   korrigieren, eine Patch-Version veröffentlichen und erst danach die
+   IDE-Abhängigkeit aktualisieren.
+6. Im semantischen IDE-Index jeden Schlüssel der konkreten Tabellen- oder
+   Array-Element-Deklaration zuordnen. Präfixvergleiche allein dürfen nicht
+   bestimmen, welche Werte zu einem Elternteil gehören.
+7. Hover, Completion, Navigation, Diagnosen, Semantic Tokens und Rename auf
+   dieselbe Eigentums- und Vererbungslogik prüfen, damit keine Funktion ein
+   abweichendes Tabellenmodell verwendet.
+8. Regressionstests mindestens für `class.truck.light`,
+   `class.truck.medium`, `class.truck.heavy`, mehrere `[[fleet]]`-Elemente und
+   verschachtelte Tabellen ergänzen.
+9. Erst nach vollständigen Kern-, LSP-, VS-Code-, Grammar- und Fuzz-Tests eine
+   neue Patch-Version der Erweiterung vorbereiten.
+
+### Nicht empfohlene Abkürzungen
+
+- Das Beispieldokument nur durch flache Namen wie `truck_light` umzuschreiben,
+  würde die ungeklärte Semantik verdecken.
+- Nur die Hover-Liste zu filtern, könnte eine korrekte Anzeige über einem
+  weiterhin falschen effektiven Dokumentmodell erzeugen.
+- Eine ausdrückliche `[class]`-Deklaration ändert weder die Geschwisterstruktur
+  noch die Vererbungsauflösung.
