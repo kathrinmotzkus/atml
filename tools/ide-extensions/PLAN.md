@@ -290,19 +290,45 @@ untersuchende Ebenen:
    Tabellenwerte ebenfalls übernommen werden können. Deshalb darf die
    Korrektur nicht ungeprüft auf die sichtbare Hover-Ausgabe begrenzt werden.
 
+### Beobachtung: Eigenschaften stehen auf der falschen Abstraktionsebene
+
+Unabhängig vom technischen Vererbungsproblem enthält
+`vehicle-rental.atml` einen fachlichen Definitionsfehler. Der abstrakte
+Elternknoten `class.truck` definiert derzeit:
+
+```atml
+[class.truck : vehicle]
+wheels = 4
+seats  = 3
+```
+
+Die Anzahl der Räder und Sitze ist jedoch keine gemeinsame Eigenschaft aller
+Trucks. Sie wird erst durch die konkrete Unterklasse `light`, `medium` oder
+`heavy` bestimmt. `class.truck` soll deshalb nur die gemeinsame abstrakte
+Vererbungsstufe zwischen `vehicle` und diesen drei konkreten Klassen bilden.
+
+Bei der späteren Korrektur sind `wheels` und `seats` aus `class.truck` zu
+entfernen und in jeder konkreten Truck-Klasse ausdrücklich zu definieren. Das
+ist ein Fehler im Domänenmodell des Beispiels und muss getrennt vom
+Geschwistertabellen-Fehler behandelt werden: Die fachliche Korrektur verhindert
+nicht von selbst, dass eine fehlerhafte Auflösung weiterhin Werte aus
+`class.truck.medium` oder `class.truck.heavy` bei `class.truck.light` anzeigt.
+
 Für `class.truck.light` wird als erwartetes Ergebnis zur Diskussion gestellt:
 
-- unmittelbar aus `class.truck.light`: `licence_class`, `cargo_volume`,
-  `deposit`, `base_rate`
-- transitiv aus `class.truck`: `wheels`, `seats`
+- unmittelbar aus `class.truck.light`: `wheels`, `seats`, `licence_class`,
+  `cargo_volume`, `deposit`, `base_rate`
+- aus `class.truck`: keine konkreten Bauartwerte; nur die transitive
+  Vererbungsbeziehung zu `vehicle`
 - transitiv aus `vehicle`: `currency`, `min_rental_period`, `status`
 - nicht enthalten: Werte oder Tabellen aus `class.truck.medium` und
   `class.truck.heavy`
 
 ### Vorgeschlagene Entscheidungs- und Arbeitsschritte
 
-1. Alle weiteren beobachteten Fälle sammeln und in kleine, erwartungsbasierte
-   Beispiele zerlegen.
+1. Alle weiteren beobachteten Fälle sammeln, als Spezifikations-, Dokument-,
+   Dokumentmodell- oder IDE-Fehler klassifizieren und in kleine,
+   erwartungsbasierte Beispiele zerlegen.
 2. Entscheiden und in `SPEC.md` normativ festhalten, ob durch eigene Tabellen-
    oder Array-of-Tables-Header deklarierte Nachfahren von der Vererbung
    ausgeschlossen werden. Dabei Dotted Keys, Inline Tables, implizite Tabellen
