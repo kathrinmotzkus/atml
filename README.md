@@ -39,7 +39,9 @@ at authoring time; what you ship can be plain TOML.
 * 🚀 **TOML v1.1 Baseline:** Every valid TOML 1.1 document is valid ATML.
 * 🌿 **Inheritance:** Hierarchical table merging via `[child : parent]`,
   with multiple parents (`[child : p1, p2]`, first parent wins), for
-  both standard tables and arrays of tables (`[[child : parent]]`).
+  both standard tables and arrays of tables (`[[child : parent]]`). A table
+  can also inherit from a table while selecting one member of an enum declared
+  within it (`[truck.light : vehicle.truck::light]`).
 * 🔗 **Bare Path References:** Assign values dynamically via
   `host = server.defaults.host`.
 * 🏷️ **Type-Safe Enums:** Explicit enum references
@@ -50,15 +52,22 @@ at authoring time; what you ship can be plain TOML.
 
 ## Example
 
-```
-[server.defaults]
-read_timeout = 500ms
-mode = OperationalMode::Active
+```atml
+[vehicle]
+truck[] = [light, medium, heavy]
+currency = "EUR"
 
-[cache : server.defaults]
-write_timeout = server.defaults.read_timeout
-limit = 16_384MiB
+[truck.light : vehicle.truck::light]
+wheels    = 4
+seats     = 2
+base_rate = 89EUR
 ```
+
+In the enum-classified parent `vehicle.truck::light`, `vehicle` is the parent
+table, `truck` is an enum declared in that table, and `light` is the selected
+member. The ABNF checks this notation syntactically. Semantic validation must
+also verify that the table and enum exist and that the selected member belongs
+to the enum.
 
 ## Repository layout
 
@@ -76,7 +85,6 @@ ABNF.md                   Introduction to ABNF and the notation used here
 EXAMPLE.md                Worked example (vehicle rental) — design and metrics
 catalog/si-units.atml     SI units catalog, written in ATML
 examples/vehicle-rental.atml   Worked example in ATML
-examples/vehicle-rental.toml   The same fleet in plain TOML, for comparison
 ```
 
 The extension file contains only `=/` incremental alternatives and new

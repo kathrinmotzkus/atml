@@ -63,18 +63,6 @@ atml-path-ref = atml-ref-seg 1*( %x2E atml-ref-seg )   ; seg "." seg ...
 atml-ref-seg  = ( ALPHA / underscore ) *( ALPHA / DIGIT / underscore / minus )
 
 ;; -----------------------------------------------------------------
-;; Table Inheritance
-;; [child : parent]  or  [child : parent1, parent2, ...]
-;; Child and parents use the standard TOML key rule (bare/quoted/dotted).
-;; Collision-free: a colon outside quotes is impossible in standard TOML
-;; headers.
-
-table =/ atml-inherit-table
-
-atml-inherit-table = std-table-open key ws %x3A ws key
-                     *( ws %x2C ws key ) std-table-close
-
-;; -----------------------------------------------------------------
 ;; Enums
 ;; An enum is a datatype with a fixed set of predefined choices. A choice
 ;; is either a bare symbol (an identifier like Active) or an ordinary TOML
@@ -131,15 +119,38 @@ atml-enum-items = ws-comment-newline atml-enum-choice ws-comment-newline array-s
 atml-enum-items =/ ws-comment-newline atml-enum-choice ws-comment-newline [ array-sep ]
 
 ;; -----------------------------------------------------------------
+;; Table Inheritance
+;; [child : parent]  or  [child : parent1, parent2, ...]
+;; A parent is either a standard TOML key (bare/quoted/dotted) or an
+;; enum-classified parent of the form <table>.<enum>::<member>. The latter
+;; inherits from <table> and selects a valid <member> of <table>.<enum>;
+;; existence, membership, and inheritance behavior are semantic rules.
+;; Collision-free: a colon outside quotes is impossible in standard TOML
+;; headers, and "::" outside quotes is impossible in standard TOML keys.
+
+table =/ atml-inherit-table
+
+atml-inherit-table = std-table-open key ws %x3A ws atml-inherit-parent
+                     *( ws %x2C ws atml-inherit-parent ) std-table-close
+
+atml-inherit-parent = atml-inherit-enum-parent / key
+
+;; At least two dotted-key segments are required: all but the final segment
+;; form <table>, the final segment is <enum>, followed by "::" and <member>.
+;; Examples: vehicle.truck::light, catalog.vehicle.truck::light.
+atml-inherit-enum-parent = dotted-key %x3A.3A atml-enum-symbol
+
+;; -----------------------------------------------------------------
 ;; Array-of-Tables Inheritance  (spec decision #13, implemented)
 ;; [[child : parent]]  or  [[child : p1, p2, ...]]
 ;; Semantics: appends a NEW element to the array "child" and seeds it with
 ;; the resolved key/values of its parents (first wins), then the child's own
-;; key/values override. Parents must resolve to standard tables (array
-;; elements are not name-addressable) -- a semantic, not a grammar, rule.
+;; key/values override. A parent may use the enum-classified form defined
+;; above. Its table part must resolve to a standard table (array elements are
+;; not name-addressable) -- a semantic, not a grammar, rule.
 ;; array-table-open/-close already carry ws.
 
 array-table =/ atml-inherit-array
 
-atml-inherit-array = array-table-open key ws %x3A ws key
-                     *( ws %x2C ws key ) array-table-close
+atml-inherit-array = array-table-open key ws %x3A ws atml-inherit-parent
+                     *( ws %x2C ws atml-inherit-parent ) array-table-close
